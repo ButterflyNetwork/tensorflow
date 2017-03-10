@@ -23,9 +23,8 @@ source "${SCRIPT_DIR}/build_helper.subr"
 ensure_macos
 ensure_correct_dir
 
-# Remove any old files first.
-make -f tensorflow/contrib/makefile/Makefile clean
-rm -rf tensorflow/contrib/makefile/downloads
+#make -f tensorflow/contrib/makefile/Makefile clean
+#rm -rf tensorflow/contrib/makefile/downloads
 
 # Setting a deployment target is required for building with bitcode,
 # otherwise linking will fail with:
@@ -35,14 +34,20 @@ rm -rf tensorflow/contrib/makefile/downloads
 export MACOSX_DEPLOYMENT_TARGET="10.10"
 
 # Pull down the required versions of the frameworks we need.
-tensorflow/contrib/makefile/download_dependencies.sh
+#tensorflow/contrib/makefile/download_dependencies.sh
 
-# Compile protobuf for the target iOS device architectures.
-tensorflow/contrib/makefile/compile_ios_protobuf.sh
 
-# Build the iOS TensorFlow libraries.
-tensorflow/contrib/makefile/compile_ios_tensorflow.sh "-O3"
+# All available architectures.
+ARCHITECTURES=(armv7 armv7s arm64 i386 x86_64)
 
-# Creates a static universal library in 
-# tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a
+# Make uppercase
+ARCHITECTURES_UPPER=()
+for i in "${ARCHITECTURES[@]}"
+do
+    ARCHITECTURES_UPPER+=($(echo $i | awk '{print toupper($0)}'))
+done
 
+source tensorflow/contrib/makefile/compile_ios_protobuf.sh
+cd ../../../../../
+pwd
+source tensorflow/contrib/makefile/compile_ios_tensorflow.sh "-O3"

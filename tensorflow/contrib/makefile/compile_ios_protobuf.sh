@@ -53,169 +53,179 @@ PROTOC_PATH="${HOST_GENDIR}/bin/protoc"
 if [[ ! -f "${PROTOC_PATH}" || ${clean} == true ]]; then
   # Try building compatible protoc first on host
   echo "protoc not found at ${PROTOC_PATH}. Build it first."
-  make_host_protoc "${HOST_GENDIR}"
+  echo make_host_protoc "${HOST_GENDIR}"
 else
   echo "protoc found. Skip building host tools."
 fi
 
-./autogen.sh
+#./autogen.sh
 if [ $? -ne 0 ]
 then
   echo "./autogen.sh command failed."
   exit 1
 fi
 
-make distclean
-./configure \
---host=i386-apple-${OSX_VERSION} \
---disable-shared \
---enable-cross-compile \
---with-protoc="${PROTOC_PATH}" \
---prefix=${LIBDIR}/iossim_386 \
---exec-prefix=${LIBDIR}/iossim_386 \
-"CFLAGS=${CFLAGS} \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
--arch i386 \
--fembed-bitcode \
--isysroot ${IPHONESIMULATOR_SYSROOT}" \
-"CXX=${CXX}" \
-"CXXFLAGS=${CXXFLAGS} \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
--arch i386 \
--fembed-bitcode \
--isysroot \
-${IPHONESIMULATOR_SYSROOT}" \
-LDFLAGS="-arch i386 \
--fembed-bitcode \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
-${LDFLAGS} \
--L${IPHONESIMULATOR_SYSROOT}/usr/lib/ \
--L${IPHONESIMULATOR_SYSROOT}/usr/lib/system" \
-"LIBS=${LIBS}"
-make -j"${JOB_COUNT}"
-make install
+if [[ ! " ${ARCHITECTURES[@]} " =~ " i368 " ]]; then
+    echo make distclean
+    echo ./configure \
+    --host=i386-apple-${OSX_VERSION} \
+    --disable-shared \
+    --enable-cross-compile \
+    --with-protoc="${PROTOC_PATH}" \
+    --prefix=${LIBDIR}/ios_386 \
+    --exec-prefix=${LIBDIR}/ios_386 \
+    "CFLAGS=${CFLAGS} \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    -arch i386 \
+    -fembed-bitcode \
+    -isysroot ${IPHONESIMULATOR_SYSROOT}" \
+    "CXX=${CXX}" \
+    "CXXFLAGS=${CXXFLAGS} \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    -arch i386 \
+    -fembed-bitcode \
+    -isysroot \
+    ${IPHONESIMULATOR_SYSROOT}" \
+    LDFLAGS="-arch i386 \
+    -fembed-bitcode \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    ${LDFLAGS} \
+    -L${IPHONESIMULATOR_SYSROOT}/usr/lib/ \
+    -L${IPHONESIMULATOR_SYSROOT}/usr/lib/system" \
+    "LIBS=${LIBS}"
+    echo make -j"${JOB_COUNT}"
+    echo make install
+fi
 
-make distclean
-./configure \
---host=x86_64-apple-${OSX_VERSION} \
---disable-shared \
---enable-cross-compile \
---with-protoc="${PROTOC_PATH}" \
---prefix=${LIBDIR}/iossim_x86_64 \
---exec-prefix=${LIBDIR}/iossim_x86_64 \
-"CFLAGS=${CFLAGS} \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
--arch x86_64 \
--fembed-bitcode \
--isysroot ${IPHONESIMULATOR_SYSROOT}" \
-"CXX=${CXX}" \
-"CXXFLAGS=${CXXFLAGS} \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
--arch x86_64 \
--fembed-bitcode \
--isysroot \
-${IPHONESIMULATOR_SYSROOT}" \
-LDFLAGS="-arch x86_64 \
--fembed-bitcode \
--mios-simulator-version-min=${MIN_SDK_VERSION} \
-${LDFLAGS} \
--L${IPHONESIMULATOR_SYSROOT}/usr/lib/ \
--L${IPHONESIMULATOR_SYSROOT}/usr/lib/system" \
-"LIBS=${LIBS}"
-make -j"${JOB_COUNT}"
-make install
+if [[ ! " ${ARCHITECTURES[@]} " =~ " x86_64 " ]]; then
+    echo make distclean
+    echo ./configure \
+    --host=x86_64-apple-${OSX_VERSION} \
+    --disable-shared \
+    --enable-cross-compile \
+    --with-protoc="${PROTOC_PATH}" \
+    --prefix=${LIBDIR}/ios_x86_64 \
+    --exec-prefix=${LIBDIR}/ios_x86_64 \
+    "CFLAGS=${CFLAGS} \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    -arch x86_64 \
+    -fembed-bitcode \
+    -isysroot ${IPHONESIMULATOR_SYSROOT}" \
+    "CXX=${CXX}" \
+    "CXXFLAGS=${CXXFLAGS} \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    -arch x86_64 \
+    -fembed-bitcode \
+    -isysroot \
+    ${IPHONESIMULATOR_SYSROOT}" \
+    LDFLAGS="-arch x86_64 \
+    -fembed-bitcode \
+    -mios-simulator-version-min=${MIN_SDK_VERSION} \
+    ${LDFLAGS} \
+    -L${IPHONESIMULATOR_SYSROOT}/usr/lib/ \
+    -L${IPHONESIMULATOR_SYSROOT}/usr/lib/system" \
+    "LIBS=${LIBS}"
+    echo make -j"${JOB_COUNT}"
+    echo make install
+fi
 
-make distclean
-./configure \
---host=armv7-apple-${OSX_VERSION} \
---with-protoc="${PROTOC_PATH}" \
---disable-shared \
---prefix=${LIBDIR}/ios_arm7 \
---exec-prefix=${LIBDIR}/ios_arm7 \
-"CFLAGS=${CFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch armv7 \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-"CXX=${CXX}" \
-"CXXFLAGS=${CXXFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch armv7 \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-LDFLAGS="-arch armv7 \
--fembed-bitcode \
--miphoneos-version-min=${MIN_SDK_VERSION} \
-${LDFLAGS}" \
-"LIBS=${LIBS}"
-make -j"${JOB_COUNT}"
-make install
+if [[ ! " ${ARCHITECTURES[@]} " =~ " arm7 " ]]; then
+    echo make distclean
+    echo ./configure \
+    --host=armv7-apple-${OSX_VERSION} \
+    --with-protoc="${PROTOC_PATH}" \
+    --disable-shared \
+    --prefix=${LIBDIR}/ios_arm7 \
+    --exec-prefix=${LIBDIR}/ios_arm7 \
+    "CFLAGS=${CFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch armv7 \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    "CXX=${CXX}" \
+    "CXXFLAGS=${CXXFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch armv7 \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    LDFLAGS="-arch armv7 \
+    -fembed-bitcode \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    ${LDFLAGS}" \
+    "LIBS=${LIBS}"
+    echo make -j"${JOB_COUNT}"
+    echo make install
+fi
 
-make distclean
-./configure \
---host=armv7s-apple-${OSX_VERSION} \
---with-protoc="${PROTOC_PATH}" \
---disable-shared \
---prefix=${LIBDIR}/ios_arm7s \
---exec-prefix=${LIBDIR}/ios_arm7s \
-"CFLAGS=${CFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch armv7s \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-"CXX=${CXX}" \
-"CXXFLAGS=${CXXFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch armv7s \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-LDFLAGS="-arch armv7s \
--fembed-bitcode \
--miphoneos-version-min=${MIN_SDK_VERSION} \
-${LDFLAGS}" \
-"LIBS=${LIBS}"
-make -j"${JOB_COUNT}"
-make install
+if [[ ! " ${ARCHITECTURES[@]} " =~ " arm7s " ]]; then
+    echo make distclean
+    echo ./configure \
+    --host=armv7s-apple-${OSX_VERSION} \
+    --with-protoc="${PROTOC_PATH}" \
+    --disable-shared \
+    --prefix=${LIBDIR}/ios_arm7s \
+    --exec-prefix=${LIBDIR}/ios_arm7s \
+    "CFLAGS=${CFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch armv7s \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    "CXX=${CXX}" \
+    "CXXFLAGS=${CXXFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch armv7s \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    LDFLAGS="-arch armv7s \
+    -fembed-bitcode \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    ${LDFLAGS}" \
+    "LIBS=${LIBS}"
+    echo make -j"${JOB_COUNT}"
+    echo make install
+fi
 
-make distclean
-./configure \
---host=arm \
---with-protoc="${PROTOC_PATH}" \
---disable-shared \
---prefix=${LIBDIR}/ios_arm64 \
---exec-prefix=${LIBDIR}/ios_arm64 \
-"CFLAGS=${CFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch arm64 \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-"CXXFLAGS=${CXXFLAGS} \
--miphoneos-version-min=${MIN_SDK_VERSION} \
--arch arm64 \
--fembed-bitcode \
--isysroot ${IPHONEOS_SYSROOT}" \
-LDFLAGS="-arch arm64 \
--fembed-bitcode \
--miphoneos-version-min=${MIN_SDK_VERSION} \
-${LDFLAGS}" \
-"LIBS=${LIBS}"
-make -j"${JOB_COUNT}"
-make install
+if [[ ! " ${ARCHITECTURES[@]} " =~ " arm64 " ]]; then
+    echo make distclean
+    echo ./configure \
+    --host=arm \
+    --with-protoc="${PROTOC_PATH}" \
+    --disable-shared \
+    --prefix=${LIBDIR}/ios_arm64 \
+    --exec-prefix=${LIBDIR}/ios_arm64 \
+    "CFLAGS=${CFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch arm64 \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    "CXXFLAGS=${CXXFLAGS} \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    -arch arm64 \
+    -fembed-bitcode \
+    -isysroot ${IPHONEOS_SYSROOT}" \
+    LDFLAGS="-arch arm64 \
+    -fembed-bitcode \
+    -miphoneos-version-min=${MIN_SDK_VERSION} \
+    ${LDFLAGS}" \
+    "LIBS=${LIBS}"
+    echo make -j"${JOB_COUNT}"
+    echo make install
+fi
 
-lipo \
-${LIBDIR}/iossim_386/lib/libprotobuf.a \
-${LIBDIR}/iossim_x86_64/lib/libprotobuf.a \
-${LIBDIR}/ios_arm7/lib/libprotobuf.a \
-${LIBDIR}/ios_arm7s/lib/libprotobuf.a \
-${LIBDIR}/ios_arm64/lib/libprotobuf.a \
--create \
--output ${LIBDIR}/libprotobuf.a
+# Run lipo for libprotobuf and libprotobuf-lite
+LIPO_CMD=lipo
+for ((i=0;i<${#ARCHITECTURES[@]};++i)); do
+    ARCH=${ARCHITECTURES[i]}
+    LIPO_CMD+=" ${LIBDIR}/ios_$ARCH/lib/libprotobuf.a"
+done
+LIPO_CMD+=" -create -output ${LIBDIR}/libprotobuf.a"
+echo eval $LIPO_CMD
 
-lipo \
-${LIBDIR}/iossim_386/lib/libprotobuf-lite.a \
-${LIBDIR}/iossim_x86_64/lib/libprotobuf-lite.a \
-${LIBDIR}/ios_arm7/lib/libprotobuf-lite.a \
-${LIBDIR}/ios_arm7s/lib/libprotobuf-lite.a \
-${LIBDIR}/ios_arm64/lib/libprotobuf-lite.a \
--create \
--output ${LIBDIR}/libprotobuf-lite.a
+LIPO_CMD=lipo
+for ((i=0;i<${#ARCHITECTURES[@]};++i)); do
+    ARCH=${ARCHITECTURES[i]}
+    LIPO_CMD+=" ${LIBDIR}/ios_$ARCH/lib/libprotobuf-lite.a"
+done
+LIPO_CMD+=" -create -output ${LIBDIR}/libprotobuf-lite.a"
+echo eval $LIPO_CMD
+

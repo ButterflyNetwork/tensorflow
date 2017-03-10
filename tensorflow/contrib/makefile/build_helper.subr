@@ -68,3 +68,18 @@ download_and_push() {
         adb push "${LOCAL_DEST}" "${ANDROID_DEST}"
     fi
 }
+
+ensure_macos() {
+    # Make sure we're on OS X.
+    if [[ $(uname) != "Darwin" ]]; then
+        echo "ERROR: This makefile build requires OS X, which the current system "\
+        "is not."
+        exit 1
+    fi
+}
+
+ensure_correct_dir() {
+    # Make sure we're in the correct directory, at the root of the source tree.
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cd ${SCRIPT_DIR}/../../../
+}
