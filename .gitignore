@@ -13,3 +13,5 @@ node_modules
 *.pyc
 __pycache__
 *.swp
+# Prevent mps test files to be commited
+tensorflow/contrib/ios_examples/mps/mps-test/*.npy
