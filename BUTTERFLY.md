@@ -1,5 +1,7 @@
 ### Butterfly specific changes to tensorflow build.
 
+#### Background 
+
 We are currently building our own tensorflow binary since by default the binary for mobiles do not include some of the ops required by our models.
 Tensorflow for ios specifically is compiled using the script 
 
@@ -42,3 +44,15 @@ e.g. We could add the following line in the Makefile in the place where sources 
 ```
 $(wildcard tensorflow/contrib/image/kernels/ops/*.cc)
 ```
+
+#### How to build
+
+```
+sh ./tensorflow/contrib/makefile/build_all_ios.sh
+```
+
+```
+sh pack_for_bni.sh
+```
+
+Change the version in `TensorflowPod.podspec` and create a release.
