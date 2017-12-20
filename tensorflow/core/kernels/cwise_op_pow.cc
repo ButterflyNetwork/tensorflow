@@ -19,6 +19,8 @@ namespace tensorflow {
 REGISTER7(BinaryOp, CPU, "Pow", functor::pow, float, Eigen::half, double, int32,
           int64, complex64, complex128);
 
+REGISTER(BinaryOp, CPU, "Pow", functor::pow, int32);
+
 #if GOOGLE_CUDA
 REGISTER4(BinaryOp, GPU, "Pow", functor::pow, float, Eigen::half, double,
           int64);

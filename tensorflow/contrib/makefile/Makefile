@@ -584,7 +584,8 @@ $(wildcard tensorflow/core/common_runtime/gpu/*) \
 $(wildcard tensorflow/core/common_runtime/gpu_device_factory.*) \
 $(wildcard tensorflow/core/grappler/inputs/trivial_test_graph_input_yielder.*) \
 $(wildcard tensorflow/core/grappler/inputs/file_input_yielder.*) \
-$(wildcard tensorflow/core/grappler/clusters/single_machine.*)
+$(wildcard tensorflow/core/grappler/clusters/single_machine.*) \
+$(wildcard tensorflow/contrib/image/kernels/ops/*.cc)
 # Filter out all the excluded files.
 TF_CC_SRCS := $(filter-out $(CORE_CC_EXCLUDE_SRCS), $(CORE_CC_ALL_SRCS))
 # Add in any extra files that don't fit the patterns easily
