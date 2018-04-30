@@ -692,7 +692,8 @@ $(wildcard tensorflow/core/platform/windows/*) \
 $(wildcard tensorflow/core/grappler/inputs/trivial_test_graph_input_yielder.*) \
 $(wildcard tensorflow/core/grappler/inputs/file_input_yielder.*) \
 $(wildcard tensorflow/core/grappler/clusters/single_machine.*) \
-tensorflow/core/util/gpu_kernel_helper_test.cu.cc
+$(wildcard tensorflow/contrib/image/kernels/ops/*.cc) \
+tensorflow/core/util/cuda_kernel_helper_test.cu.cc
 
 CORE_CC_EXCLUDE_SRCS := \
 $(CORE_CC_EXCLUDE_SRCS_NON_GPU) \
