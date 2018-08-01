@@ -203,7 +203,7 @@ class UniqueOp : public OpKernel {
                               .Device(DEVICE_CPU)                \
                               .TypeConstraint<int64>("T")         \
                               .TypeConstraint<int32>("out_idx"), \
-                          UniqueOp<type, int32>);                \
+                          UniqueOp<int64, int32>);                \
   REGISTER_KERNEL_BUILDER(Name("Unique")                         \
                               .Device(DEVICE_CPU)                \
                               .TypeConstraint<type>("T")         \
