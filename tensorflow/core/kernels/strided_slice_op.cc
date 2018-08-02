@@ -405,6 +405,14 @@ TF_CALL_ALL_TYPES(REGISTER_STRIDED_SLICE);
 
 #undef REGISTER_STRIDED_SLICE
 
+REGISTER_KERNEL_BUILDER(Name("StridedSlice")                   \
+                            .Device(DEVICE_CPU)                \
+                            .TypeConstraint<int64>("T")         \
+                            .HostMemory("begin")               \
+                            .HostMemory("end")                 \
+                            .HostMemory("strides"),            \
+                        StridedSliceOp<CPUDevice, int64>)       \
+
 #if GOOGLE_CUDA
 
 #define REGISTER_GPU(type)                                       \
