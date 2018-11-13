@@ -1,6 +1,4 @@
-package(
-    default_visibility = ["//visibility:public"],
-)
+package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
@@ -42,7 +40,6 @@ tf_proto_library(
     name = "protos_all",
     srcs = glob(["**/*.proto"]),
     cc_api_version = 2,
-    java_api_version = 2,
     protodeps = tf_additional_all_protos(),
     visibility = ["//visibility:public"],
 )

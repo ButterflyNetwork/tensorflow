@@ -44,13 +44,13 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import partitioned_variables
+from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import test
 from tensorflow.python.summary import summary as summary_lib
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import distribute as distribute_lib
 from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import optimizer as optimizer_lib
@@ -65,6 +65,11 @@ from tensorflow.python.training import training_util
 LEARNING_RATE_NAME = 'dnn/regression_head/dnn/learning_rate'
 HIDDEN_WEIGHTS_NAME_PATTERN = 'dnn/hiddenlayer_%d/kernel'
 HIDDEN_BIASES_NAME_PATTERN = 'dnn/hiddenlayer_%d/bias'
+BATCH_NORM_BETA_NAME_PATTERN = 'dnn/hiddenlayer_%d/batchnorm_%d/beta'
+BATCH_NORM_GAMMA_NAME_PATTERN = 'dnn/hiddenlayer_%d/batchnorm_%d/gamma'
+BATCH_NORM_MEAN_NAME_PATTERN = 'dnn/hiddenlayer_%d/batchnorm_%d/moving_mean'
+BATCH_NORM_VARIANCE_NAME_PATTERN = (
+    'dnn/hiddenlayer_%d/batchnorm_%d/moving_variance')
 LOGITS_WEIGHTS_NAME = 'dnn/logits/kernel'
 LOGITS_BIASES_NAME = 'dnn/logits/bias'
 OCCUPATION_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
@@ -89,21 +94,33 @@ def assert_close(expected, actual, rtol=1e-04, message='', name='assert_close'):
         name=scope)
 
 
-def create_checkpoint(weights_and_biases, global_step, model_dir):
+def create_checkpoint(weights_and_biases,
+                      global_step,
+                      model_dir,
+                      batch_norm_vars=None):
   """Create checkpoint file with provided model weights.
 
   Args:
     weights_and_biases: Iterable of tuples of weight and bias values.
     global_step: Initial global step to save in checkpoint.
     model_dir: Directory into which checkpoint is saved.
+    batch_norm_vars: Variables used for batch normalization.
   """
   weights, biases = zip(*weights_and_biases)
+  if batch_norm_vars:
+    assert len(batch_norm_vars) == len(weights_and_biases) - 1
+    (bn_betas, bn_gammas, bn_means, bn_variances) = zip(*batch_norm_vars)
   model_weights = {}
 
   # Hidden layer weights.
   for i in range(0, len(weights) - 1):
     model_weights[HIDDEN_WEIGHTS_NAME_PATTERN % i] = weights[i]
     model_weights[HIDDEN_BIASES_NAME_PATTERN % i] = biases[i]
+    if batch_norm_vars:
+      model_weights[BATCH_NORM_BETA_NAME_PATTERN % (i, i)] = bn_betas[i]
+      model_weights[BATCH_NORM_GAMMA_NAME_PATTERN % (i, i)] = bn_gammas[i]
+      model_weights[BATCH_NORM_MEAN_NAME_PATTERN % (i, i)] = bn_means[i]
+      model_weights[BATCH_NORM_VARIANCE_NAME_PATTERN % (i, i)] = bn_variances[i]
 
   # Output layer weights.
   model_weights[LOGITS_WEIGHTS_NAME] = weights[-1]
@@ -134,7 +151,7 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
       hidden_weights_names + hidden_biases_names +
       [LOGITS_WEIGHTS_NAME + '/part_0:0', LOGITS_BIASES_NAME + '/part_0:0'])
 
-  def _create_estimator_spec(
+  def _create_tpu_estimator_spec(
       features, mode, logits, labels, train_op_fn=None, optimizer=None):
     del features, labels  # Not used.
     trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
@@ -149,19 +166,29 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
           train_op = train_op_fn(loss)
         elif optimizer is not None:
           train_op = optimizer.minimize(loss, global_step=None)
-        return model_fn.EstimatorSpec(
+        return model_fn._TPUEstimatorSpec(
             mode=mode, loss=loss, train_op=train_op)
       elif mode == model_fn.ModeKeys.EVAL:
-        return model_fn.EstimatorSpec(mode=mode, loss=array_ops.identity(loss))
+        return model_fn._TPUEstimatorSpec(
+            mode=mode, loss=array_ops.identity(loss))
       elif mode == model_fn.ModeKeys.PREDICT:
-        return model_fn.EstimatorSpec(
+        return model_fn._TPUEstimatorSpec(
             mode=mode, predictions={'logits': array_ops.identity(logits)})
       else:
         testcase.fail('Invalid mode: {}'.format(mode))
 
+  def _create_estimator_spec(
+      features, mode, logits, labels, train_op_fn=None, optimizer=None):
+    tpu_spec = _create_tpu_estimator_spec(
+        features, mode, logits, labels, train_op_fn, optimizer)
+    return tpu_spec.as_estimator_spec()
+
   head = test.mock.NonCallableMagicMock(spec=head_lib._Head)
   head.logits_dimension = logits_dimension
-  head.create_estimator_spec = test.mock.MagicMock(wraps=_create_estimator_spec)
+  head._create_tpu_estimator_spec = test.mock.MagicMock(
+      wraps=_create_tpu_estimator_spec)
+  head.create_estimator_spec = test.mock.MagicMock(
+      wraps=_create_estimator_spec)
 
   return head
 
@@ -196,7 +223,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
     testcase.assertEquals(0, loss.shape.ndims)
     if expected_loss is None:
       if global_step is not None:
-        return distribute_lib.increment_var(global_step)
+        return state_ops.assign_add(global_step, 1).op
       return control_flow_ops.no_op()
     assert_loss = assert_close(
         math_ops.to_float(expected_loss, name='expected'),
@@ -204,7 +231,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
         name='assert_loss')
     with ops.control_dependencies((assert_loss,)):
       if global_step is not None:
-        return distribute_lib.increment_var(global_step)
+        return state_ops.assign_add(global_step, 1).op
       return control_flow_ops.no_op()
 
   optimizer_mock = test.mock.NonCallableMagicMock(
@@ -218,8 +245,9 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
 class BaseDNNModelFnTest(object):
   """Tests that _dnn_model_fn passes expected logits to mock head."""
 
-  def __init__(self, dnn_model_fn):
+  def __init__(self, dnn_model_fn, fc_impl=feature_column):
     self._dnn_model_fn = dnn_model_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -246,7 +274,7 @@ class BaseDNNModelFnTest(object):
           head=head,
           hidden_units=hidden_units,
           feature_columns=[
-              feature_column.numeric_column(
+              self._fc_impl.numeric_column(
                   'age', shape=np.array(inputs).shape[1:])
           ],
           optimizer=mock_optimizer(self, hidden_units))
@@ -436,8 +464,8 @@ class BaseDNNModelFnTest(object):
             head=head,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column.numeric_column('age'),
-                feature_column.numeric_column('height')
+                self._fc_impl.numeric_column('age'),
+                self._fc_impl.numeric_column('height')
             ],
             optimizer=mock_optimizer(self, hidden_units))
         with monitored_session.MonitoredTrainingSession(
@@ -473,7 +501,7 @@ class BaseDNNModelFnTest(object):
             head=head,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column.numeric_column(
+                self._fc_impl.numeric_column(
                     'age', shape=np.array(inputs).shape[1:])
             ],
             optimizer=mock_optimizer(self, hidden_units))
@@ -482,8 +510,9 @@ class BaseDNNModelFnTest(object):
 class BaseDNNLogitFnTest(object):
   """Tests correctness of logits calculated from _dnn_logit_fn_builder."""
 
-  def __init__(self, dnn_logit_fn_builder):
+  def __init__(self, dnn_logit_fn_builder, fc_impl=feature_column):
     self._dnn_logit_fn_builder = dnn_logit_fn_builder
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -493,8 +522,13 @@ class BaseDNNLogitFnTest(object):
       writer_cache.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_logits(self, mode, hidden_units, logits_dimension, inputs,
-                   expected_logits):
+  def _test_logits(self,
+                   mode,
+                   hidden_units,
+                   logits_dimension,
+                   inputs,
+                   expected_logits,
+                   batch_norm=False):
     """Tests that the expected logits are calculated."""
     with ops.Graph().as_default():
       # Global step needed for MonitoredSession, which is in turn used to
@@ -510,12 +544,13 @@ class BaseDNNLogitFnTest(object):
             units=logits_dimension,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column.numeric_column(
+                self._fc_impl.numeric_column(
                     'age', shape=np.array(inputs).shape[1:])
             ],
             activation_fn=nn.relu,
             dropout=None,
-            input_layer_partitioner=input_layer_partitioner)
+            input_layer_partitioner=input_layer_partitioner,
+            batch_norm=batch_norm)
         logits = logit_fn(
             features={'age': constant_op.constant(inputs)}, mode=mode)
         with monitored_session.MonitoredTrainingSession(
@@ -545,6 +580,69 @@ class BaseDNNLogitFnTest(object):
           logits_dimension=1,
           inputs=[[10.]],
           expected_logits=[[-2.08]])
+
+  def test_one_dim_logits_with_batch_norm(self):
+    """Tests one-dimensional logits.
+
+    input_layer = [[10]]
+    hidden_layer_0 = [[relu(0.6*10 +1), relu(0.5*10 -1)]] = [[7, 4]]
+    hidden_layer_0 = [[relu(0.6*20 +1), relu(0.5*20 -1)]] = [[13, 9]]
+
+    batch_norm_0, training (epsilon = 0.001):
+      mean1 = 1/2*(7+13) = 10,
+      variance1 = 1/2*(3^2+3^2) = 9
+      x11 = (7-10)/sqrt(9+0.001) = -0.999944449,
+      x21 = (13-10)/sqrt(9+0.001) = 0.999944449,
+
+      mean2 = 1/2*(4+9) = 6.5,
+      variance2 = 1/2*(2.5^2+.2.5^2) = 6.25
+      x12 = (4-6.5)/sqrt(6.25+0.001) = -0.99992001,
+      x22 = (9-6.5)/sqrt(6.25+0.001) = 0.99992001,
+
+    logits = [[-1*(-0.999944449) + 2*(-0.99992001) + 0.3],
+              [-1*0.999944449 + 2*0.99992001 + 0.3]]
+           = [[-0.699895571],[1.299895571]]
+
+    batch_norm_0, not training (epsilon = 0.001):
+      moving_mean1 = 0, moving_variance1 = 1
+      x11 = (7-0)/sqrt(1+0.001) = 6.996502623,
+      x21 = (13-0)/sqrt(1+0.001) = 12.993504871,
+      moving_mean2 = 0, moving_variance2 = 1
+      x12 = (4-0)/sqrt(1+0.001) = 3.998001499,
+      x22 = (9-0)/sqrt(1+0.001) = 8.995503372,
+
+    logits = [[-1*6.996502623 + 2*3.998001499 + 0.3],
+              [-1*12.993504871 + 2*8.995503372 + 0.3]]
+           = [[1.299500375],[5.297501873]]
+    """
+    base_global_step = 100
+    create_checkpoint(
+        (
+            ([[.6, .5]], [1., -1.]),
+            ([[-1.], [2.]], [.3]),
+        ),
+        base_global_step,
+        self._model_dir,
+        batch_norm_vars=([[0, 0],  # beta.
+                          [1, 1],  # gamma.
+                          [0, 0],  # moving mean.
+                          [1, 1],  # moving variance.
+                         ],))
+    self._test_logits(
+        model_fn.ModeKeys.TRAIN,
+        hidden_units=[2],
+        logits_dimension=1,
+        inputs=[[10.], [20.]],
+        expected_logits=[[-0.699895571], [1.299895571]],
+        batch_norm=True)
+    for mode in [model_fn.ModeKeys.EVAL, model_fn.ModeKeys.PREDICT]:
+      self._test_logits(
+          mode,
+          hidden_units=[2],
+          logits_dimension=1,
+          inputs=[[10.], [20.]],
+          expected_logits=[[1.299500375], [5.297501873]],
+          batch_norm=True)
 
   def test_multi_dim_logits(self):
     """Tests multi-dimensional logits.
@@ -691,12 +789,13 @@ class BaseDNNLogitFnTest(object):
               units=logits_dimension,
               hidden_units=hidden_units,
               feature_columns=[
-                  feature_column.numeric_column('age'),
-                  feature_column.numeric_column('height')
+                  self._fc_impl.numeric_column('age'),
+                  self._fc_impl.numeric_column('height')
               ],
               activation_fn=nn.relu,
               dropout=None,
-              input_layer_partitioner=input_layer_partitioner)
+              input_layer_partitioner=input_layer_partitioner,
+              batch_norm=False)
           logits = logit_fn(
               features={
                   'age': constant_op.constant(inputs[0]),
@@ -710,9 +809,13 @@ class BaseDNNLogitFnTest(object):
 
 class BaseDNNWarmStartingTest(object):
 
-  def __init__(self, _dnn_classifier_fn, _dnn_regressor_fn):
+  def __init__(self,
+               _dnn_classifier_fn,
+               _dnn_regressor_fn,
+               fc_impl=feature_column):
     self._dnn_classifier_fn = _dnn_classifier_fn
     self._dnn_regressor_fn = _dnn_regressor_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     # Create a directory to save our old checkpoint and vocabularies to.
@@ -747,8 +850,8 @@ class BaseDNNWarmStartingTest(object):
 
   def test_classifier_basic_warm_starting(self):
     """Tests correctness of DNNClassifier default warm-start."""
-    city = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_list(
+    city = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
         dimension=5)
 
@@ -779,8 +882,8 @@ class BaseDNNWarmStartingTest(object):
 
   def test_regressor_basic_warm_starting(self):
     """Tests correctness of DNNRegressor default warm-start."""
-    city = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_list(
+    city = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
         dimension=5)
 
@@ -809,8 +912,8 @@ class BaseDNNWarmStartingTest(object):
 
   def test_warm_starting_selective_variables(self):
     """Tests selecting variables to warm-start."""
-    city = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_list(
+    city = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
         dimension=5)
 
@@ -862,8 +965,8 @@ class BaseDNNWarmStartingTest(object):
     vocab_file = os.path.join(self._ckpt_and_vocab_dir, 'occupation_vocab')
     with open(vocab_file, 'w') as f:
       f.write('\n'.join(vocab_list))
-    occupation = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_file(
+    occupation = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_file(
             'occupation',
             vocabulary_file=vocab_file,
             vocabulary_size=len(vocab_list)),
@@ -889,8 +992,8 @@ class BaseDNNWarmStartingTest(object):
                                   'new_occupation_vocab')
     with open(new_vocab_file, 'w') as f:
       f.write('\n'.join(new_vocab_list))
-    new_occupation = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_file(
+    new_occupation = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_file(
             'occupation',
             vocabulary_file=new_vocab_file,
             vocabulary_size=len(new_vocab_list)),
@@ -955,8 +1058,8 @@ class BaseDNNWarmStartingTest(object):
 
   def test_warm_starting_with_naming_change(self):
     """Tests warm-starting with a Tensor name remapping."""
-    locality = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_list(
+    locality = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_list(
             'locality', vocabulary_list=['Mountain View', 'Palo Alto']),
         dimension=5)
 
@@ -972,8 +1075,8 @@ class BaseDNNWarmStartingTest(object):
     # Create a second DNNClassifier, warm-started from the first.  Use a
     # learning_rate = 0.0 optimizer to check values (use SGD so we don't have
     # accumulator values that change).
-    city = feature_column.embedding_column(
-        feature_column.categorical_column_with_vocabulary_list(
+    city = self._fc_impl.embedding_column(
+        self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
         dimension=5)
     warm_started_dnn_classifier = self._dnn_classifier_fn(
@@ -1005,8 +1108,9 @@ class BaseDNNWarmStartingTest(object):
 
 class BaseDNNClassifierEvaluateTest(object):
 
-  def __init__(self, dnn_classifier_fn):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
     self._dnn_classifier_fn = dnn_classifier_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1025,7 +1129,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age')],
+        feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
     def _input_fn():
       # batch_size = 2, one false label, and one true.
@@ -1065,7 +1169,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age', shape=[2])],
+        feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         n_classes=n_classes,
         model_dir=self._model_dir)
     def _input_fn():
@@ -1096,7 +1200,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age')],
+        feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
     def _input_fn():
       # batch_size = 2, one false label, and one true.
@@ -1122,7 +1226,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age', shape=[2])],
+        feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         n_classes=n_classes,
         weight_column='w',
         model_dir=self._model_dir)
@@ -1142,8 +1246,9 @@ class BaseDNNClassifierEvaluateTest(object):
 
 class BaseDNNRegressorEvaluateTest(object):
 
-  def __init__(self, dnn_regressor_fn):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
     self._dnn_regressor_fn = dnn_regressor_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1163,7 +1268,7 @@ class BaseDNNRegressorEvaluateTest(object):
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age')],
+        feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
     def _input_fn():
       return {'age': [[10.]]}, [[1.]]
@@ -1175,6 +1280,8 @@ class BaseDNNRegressorEvaluateTest(object):
     self.assertAllClose({
         metric_keys.MetricKeys.LOSS: expected_loss,
         metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+        metric_keys.MetricKeys.PREDICTION_MEAN: -2.08,
+        metric_keys.MetricKeys.LABEL_MEAN: 1.0,
         ops.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
@@ -1191,7 +1298,7 @@ class BaseDNNRegressorEvaluateTest(object):
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age', shape=[2])],
+        feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         label_dimension=label_dimension,
         model_dir=self._model_dir)
     def _input_fn():
@@ -1205,6 +1312,8 @@ class BaseDNNRegressorEvaluateTest(object):
     self.assertAllClose({
         metric_keys.MetricKeys.LOSS: expected_loss,
         metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
+        metric_keys.MetricKeys.PREDICTION_MEAN: 0.39 / 3.0,
+        metric_keys.MetricKeys.LABEL_MEAN: 0.5 / 3.0,
         ops.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
@@ -1220,7 +1329,7 @@ class BaseDNNRegressorEvaluateTest(object):
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
-        feature_columns=[feature_column.numeric_column('age', shape=[2])],
+        feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         label_dimension=label_dimension,
         weight_column='w',
         model_dir=self._model_dir)
@@ -1239,8 +1348,9 @@ class BaseDNNRegressorEvaluateTest(object):
 
 class BaseDNNClassifierPredictTest(object):
 
-  def __init__(self, dnn_classifier_fn):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
     self._dnn_classifier_fn = dnn_classifier_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1261,7 +1371,7 @@ class BaseDNNClassifierPredictTest(object):
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
         label_vocabulary=label_vocabulary,
-        feature_columns=(feature_column.numeric_column('x'),),
+        feature_columns=(self._fc_impl.numeric_column('x'),),
         model_dir=self._model_dir)
     input_fn = numpy_io.numpy_input_fn(
         x={'x': np.array([[10.]])}, batch_size=1, shuffle=False)
@@ -1305,7 +1415,7 @@ class BaseDNNClassifierPredictTest(object):
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
-        feature_columns=(feature_column.numeric_column('x', shape=(2,)),),
+        feature_columns=(self._fc_impl.numeric_column('x', shape=(2,)),),
         label_vocabulary=label_vocabulary,
         n_classes=3,
         model_dir=self._model_dir)
@@ -1353,8 +1463,9 @@ class BaseDNNClassifierPredictTest(object):
 
 class BaseDNNRegressorPredictTest(object):
 
-  def __init__(self, dnn_regressor_fn):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
     self._dnn_regressor_fn = dnn_regressor_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1375,7 +1486,7 @@ class BaseDNNRegressorPredictTest(object):
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
-        feature_columns=(feature_column.numeric_column('x'),),
+        feature_columns=(self._fc_impl.numeric_column('x'),),
         model_dir=self._model_dir)
     input_fn = numpy_io.numpy_input_fn(
         x={'x': np.array([[10.]])}, batch_size=1, shuffle=False)
@@ -1397,7 +1508,7 @@ class BaseDNNRegressorPredictTest(object):
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
-        feature_columns=(feature_column.numeric_column('x', shape=(2,)),),
+        feature_columns=(self._fc_impl.numeric_column('x', shape=(2,)),),
         label_dimension=3,
         model_dir=self._model_dir)
     input_fn = numpy_io.numpy_input_fn(
@@ -1494,8 +1605,9 @@ def _assert_simple_summary(testcase, expected_values, actual_summary):
 
 class BaseDNNClassifierTrainTest(object):
 
-  def __init__(self, dnn_classifier_fn):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
     self._dnn_classifier_fn = dnn_classifier_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1509,7 +1621,7 @@ class BaseDNNClassifierTrainTest(object):
     hidden_units = (2, 2)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         model_dir=self._model_dir)
 
     # Train for a few steps, then validate final checkpoint.
@@ -1525,7 +1637,7 @@ class BaseDNNClassifierTrainTest(object):
     n_classes = 3
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         n_classes=n_classes,
         model_dir=self._model_dir)
 
@@ -1543,7 +1655,7 @@ class BaseDNNClassifierTrainTest(object):
         self, hidden_units=hidden_units)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1582,7 +1694,7 @@ class BaseDNNClassifierTrainTest(object):
         self, hidden_units=hidden_units, expected_loss=expected_loss)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1628,7 +1740,7 @@ class BaseDNNClassifierTrainTest(object):
         self, hidden_units=hidden_units, expected_loss=expected_loss)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1659,7 +1771,7 @@ class BaseDNNClassifierTrainTest(object):
     dnn_classifier = self._dnn_classifier_fn(
         n_classes=n_classes,
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1693,8 +1805,9 @@ class BaseDNNClassifierTrainTest(object):
 
 class BaseDNNRegressorTrainTest(object):
 
-  def __init__(self, dnn_regressor_fn):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
     self._dnn_regressor_fn = dnn_regressor_fn
+    self._fc_impl = fc_impl
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1708,7 +1821,7 @@ class BaseDNNRegressorTrainTest(object):
     hidden_units = (2, 2)
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         model_dir=self._model_dir)
 
     # Train for a few steps, then validate final checkpoint.
@@ -1724,7 +1837,7 @@ class BaseDNNRegressorTrainTest(object):
     opt = mock_optimizer(self, hidden_units=hidden_units)
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1764,7 +1877,7 @@ class BaseDNNRegressorTrainTest(object):
         self, hidden_units=hidden_units, expected_loss=expected_loss)
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=hidden_units,
-        feature_columns=(feature_column.numeric_column('age'),),
+        feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
     self.assertEqual(0, opt.minimize.call_count)
@@ -1817,7 +1930,8 @@ class BaseDNNRegressorTrainTest(object):
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=hidden_units,
         feature_columns=[
-            feature_column.numeric_column('age', shape=[input_dimension])],
+            self._fc_impl.numeric_column('age', shape=[input_dimension])
+        ],
         label_dimension=label_dimension,
         optimizer=opt,
         model_dir=self._model_dir)
