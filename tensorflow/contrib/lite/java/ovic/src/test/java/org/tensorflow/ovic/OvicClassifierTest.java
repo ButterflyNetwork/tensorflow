@@ -1,4 +1,4 @@
-/*Copyright 2018 Google LLC
+/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,19 +43,19 @@ public final class OvicClassifierTest {
   private MappedByteBuffer lowResModel = null;
   private ByteBuffer testImage = null;
   private ByteBuffer lowResTestImage = null;
-  private OvicSingleImageResult testResult = null;
+  private OvicClassificationResult testResult = null;
   private static final String LABELS_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/labels.txt";
+      "tensorflow/contrib/lite/java/ovic/src/testdata/labels.txt";
   private static final String QUANTIZED_MODEL_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/quantized_model.lite";
+      "external/tflite_ovic_testdata/quantized_model.lite";
   private static final String LOW_RES_MODEL_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/low_res_model.lite";
+      "external/tflite_ovic_testdata/low_res_model.lite";
   private static final String FLOAT_MODEL_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/float_model.lite";
+      "external/tflite_ovic_testdata/float_model.lite";
   private static final String TEST_IMAGE_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/test_image_224.jpg";
+      "external/tflite_ovic_testdata/test_image_224.jpg";
   private static final String TEST_LOW_RES_IMAGE_PATH =
-      "third_party/tensorflow/contrib/lite/java/ovic/src/testdata/test_image_128.jpg";
+      "external/tflite_ovic_testdata/test_image_128.jpg";
   private static final int TEST_IMAGE_GROUNDTRUTH = 653; // "military uniform"
 
   @Before
@@ -127,12 +127,8 @@ public final class OvicClassifierTest {
     try {
       testResult = classifier.classifyByteBuffer(testImage);
       fail();
-    } catch (RuntimeException e) {
-      assertThat(e)
-          .hasMessageThat()
-          .contains(
-              "Failed to get input dimensions. 0-th input should have 49152 bytes, "
-                  + "but found 150528 bytes.");
+    } catch (IllegalArgumentException e) {
+      // Success.
     }
   }
 
@@ -151,7 +147,7 @@ public final class OvicClassifierTest {
     return imgData;
   }
 
-  private static void assertCorrectTopK(OvicSingleImageResult testResult) {
+  private static void assertCorrectTopK(OvicClassificationResult testResult) {
     assertThat(testResult.topKClasses.size() > 0).isTrue();
     Boolean topKAccurate = false;
     // Assert that the correct class is in the top K.

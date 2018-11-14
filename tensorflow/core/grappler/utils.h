@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_GRAPPLER_UTILS_H_
-#define TENSORFLOW_GRAPPLER_UTILS_H_
+#ifndef TENSORFLOW_CORE_GRAPPLER_UTILS_H_
+#define TENSORFLOW_CORE_GRAPPLER_UTILS_H_
 
 #include <functional>
 #include <unordered_map>
@@ -26,6 +26,7 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/lib/core/stringpiece.h"
 #include "tensorflow/core/lib/core/threadpool.h"
 #include "tensorflow/core/lib/gtl/inlined_vector.h"
 
@@ -63,7 +64,7 @@ class NodeMap {
 // A vector with a set. The set stores the same elements as the vector, and
 // quickly answers whether a value is in the vector. Duplicated elements are not
 // allowed for now.
-template <class T>
+template <class T, class Hash = std::hash<T>>
 class SetVector {
  public:
   // Returns false if value already existed in the set, true otherwise.
@@ -89,7 +90,7 @@ class SetVector {
   void Reserve(int64 size) { vector_.reserve(size); }
 
  private:
-  std::unordered_set<T> set_;
+  std::unordered_set<T, Hash> set_;
   std::vector<T> vector_;
 };
 
@@ -100,15 +101,104 @@ bool IsControlInput(const string& name);
 // True iff 'name1' and 'name2' refer to the same input.
 bool IsSameInput(const string& name1, const string& name2);
 
+// Returns the trailing position number (or zero if no number is present) if
+// NodeName(input_name) is equal to node_name. Returns -1 for control inputs.
+// Returns -2 if NodeName(input_name) is not equal to node_name.
+// Note: This function is used very heavily, and this hand-optimized
+// version is 3-4x faster than the version using Scanner, which it replaced.
+// This is worth the reduction in readability.
+inline int NodePositionIfSameNode(const string& input_name,
+                                  const string& node_name) {
+  if (input_name.empty()) return -2;
+  const bool is_ctrl = input_name[0] == '^';
+  auto input_it = is_ctrl ? input_name.begin() + 1 : input_name.begin();
+  auto node_it = node_name.begin();
+  if (node_name.empty() ||
+      std::distance(input_it, input_name.end()) < node_name.size()) {
+    return -2;
+  }
+  while (node_it != node_name.end()) {
+    if (*input_it++ != *node_it++) {
+      return -2;
+    }
+  }
+  if (input_it == input_name.end()) {
+    return is_ctrl ? -1 : 0;
+  } else if (*input_it++ == ':') {
+    StringPiece remaining(&(*input_it),
+                          std::distance(input_it, input_name.end()));
+    int position;
+    if (!strings::safe_strto32(remaining, &position)) {
+      return -2;
+    }
+    return is_ctrl ? -1 : position;
+  } else {
+    return -2;
+  }
+}
+
 // Return the node name corresponding to 'name' if name is valid, or the empty
 // string otherwise.
-string NodeName(const string& name);
+inline StringPiece NodeNameAsStringPiece(const string& name) {
+  static const string empty;
+  if (name.empty()) return StringPiece(empty);
+  const auto begin_it = name[0] == '^' ? name.begin() + 1 : name.begin();
+  auto end_it = begin_it;
+  while (end_it != name.end() && *end_it != ':') {
+    ++end_it;
+  }
+  if (end_it != name.end() && *end_it != ':') {
+    return StringPiece(empty);
+  }
+  return StringPiece(&(*begin_it), std::distance(begin_it, end_it));
+}
 
-// Get the trailing position number ":{digits}" (if any) of a node name.
-int NodePosition(const string& name);
+// Return the node name corresponding to 'name' if name is valid, or the empty
+// string otherwise.
+inline string NodeName(const string& name) {
+  return string(NodeNameAsStringPiece(name));
+}
 
 // Returns the node name and position in a single call.
-string ParseNodeName(const string& name, int* position);
+inline StringPiece ParseNodeNameAsStringPiece(const string& name,
+                                              int* position) {
+  static const string empty;
+  if (name.empty()) {
+    *position = 0;
+    return StringPiece(empty);
+  }
+  const bool is_ctrl = name[0] == '^';
+  const auto begin_it = is_ctrl ? name.begin() + 1 : name.begin();
+  *position = is_ctrl ? -1 : 0;
+  auto end_it = begin_it;
+  while (end_it != name.end() && *end_it != ':') {
+    ++end_it;
+  }
+  const StringPiece node_name(&(*begin_it), std::distance(begin_it, end_it));
+  if (end_it != name.end()) {
+    if (*end_it != ':') {
+      return StringPiece(empty);
+    } else if (!is_ctrl) {
+      ++end_it;
+      StringPiece remaining(&(*end_it), std::distance(end_it, name.end()));
+      if (!strings::safe_strto32(remaining, position)) {
+        return StringPiece(empty);
+      }
+    }
+  }
+  return node_name;
+}
+
+// Returns the node name and position in a single call.
+inline string ParseNodeName(const string& name, int* position) {
+  return string(ParseNodeNameAsStringPiece(name, position));
+}
+
+inline int NodePosition(const string& name) {
+  int position;
+  ParseNodeNameAsStringPiece(name, &position);
+  return position;
+}
 
 // Add a prefix to a node name with a custom delimiter.
 string AddPrefixToNodeName(const string& name, const string& prefix,
@@ -177,20 +267,46 @@ void PermuteNodesInPlace(GraphDef* graph, std::vector<int>* permutation,
 
 Status SetTensorValue(DataType dtype, int value, Tensor* tensor);
 
+void EraseNodesFromGraph(const std::set<int>& nodes_to_delete, GraphDef* graph);
+
+void EraseNodesFromGraph(std::vector<int>&& nodes_to_delete, GraphDef* graph);
+
+void EraseNodesFromGraph(const std::set<string>& nodes_to_delete,
+                         GraphDef* graph);
+
 class SimpleGraphView {
  public:
+  // Build a graph view for the specified graphdef.
   Status Initialize(const GraphDef& graph) {
-    return Initialize(graph, true, true);
+    return Initialize(graph, nullptr, true, true);
   }
-  Status Initialize(const GraphDef& graph, bool dedup_inputs,
-                    bool dedup_outputs);
+  // Build a graph view for the specified graphdef augmented with the additional
+  // edges specified in 'extra_dependencies' if any. Note that
+  // extra_dependencies can be null.
+  Status Initialize(
+      const GraphDef& graph,
+      const std::vector<std::pair<const NodeDef*, const NodeDef*>>*
+          extra_dependencies) {
+    return Initialize(graph, extra_dependencies, true, true);
+  }
+  Status Initialize(
+      const GraphDef& graph,
+      const std::vector<std::pair<const NodeDef*, const NodeDef*>>*
+          extra_dependencies,
+      bool dedup_inputs, bool dedup_outputs);
 
   const GraphDef* graph() const { return graph_; }
   inline int num_nodes() const { return index_to_name_.size(); }
+  inline bool has_node(const string& node_name) const {
+    return name_to_index_.find(node_name) != name_to_index_.end();
+  }
   inline const int index(const string& node_name) const {
     const auto& it = name_to_index_.find(node_name);
     DCHECK(it != name_to_index_.end());
     return it == name_to_index_.end() ? -1 : it->second;
+  }
+  inline const NodeDef& node(int node_idx) const {
+    return graph_->node(node_idx);
   }
   inline const string& node_name(int node_idx) const {
     return index_to_name_[node_idx];
@@ -206,6 +322,7 @@ class SimpleGraphView {
   // visited in nodes_found. If a node has an op in `op_types_to_traverse`, the
   // walk continues to its children. It is assumed that *graph_ was not modified
   // after the call to Initialize().
+  // If `op_types_to_traverse` is empty the DFS will traverse any node type.
   void DepthFirstSearch(const std::unordered_set<string>& op_types_to_traverse,
                         int node_idx, std::set<int>* nodes_found) const;
 
@@ -222,4 +339,4 @@ class SimpleGraphView {
 }  // end namespace grappler
 }  // end namespace tensorflow
 
-#endif  // TENSORFLOW_GRAPPLER_UTILS_H_
+#endif  // TENSORFLOW_CORE_GRAPPLER_UTILS_H_

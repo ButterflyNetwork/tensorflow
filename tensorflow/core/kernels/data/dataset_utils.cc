@@ -14,10 +14,10 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/kernels/data/dataset_utils.h"
+#include "tensorflow/core/common_runtime/device.h"
 
 namespace tensorflow {
-
-namespace dataset {
+namespace data {
 
 Status MakeIteratorFromInputElement(
     IteratorContext* ctx, const std::vector<Tensor>& input_element,
@@ -40,11 +40,46 @@ Status MakeIteratorFromInputElement(
       GetDatasetFromVariantTensor(return_values[0], &returned_dataset));
 
   // Create an iterator for the dataset that was returned by `f`.
-  *out_iterator = returned_dataset->MakeIterator(
-      strings::StrCat(prefix, "[", thread_index, "]"));
+  return returned_dataset->MakeIterator(
+      ctx, strings::StrCat(prefix, "[", thread_index, "]"), out_iterator);
+}
+
+Status VerifyTypesMatch(const DataTypeVector& expected,
+                        const DataTypeVector& received) {
+  if (expected.size() != received.size()) {
+    return errors::InvalidArgument(
+        "Number of components does not match: expected ", expected.size(),
+        " types but got ", received.size(), ".");
+  }
+  for (size_t i = 0; i < expected.size(); ++i) {
+    if (expected[i] != received[i]) {
+      return errors::InvalidArgument("Data type mismatch at component ", i,
+                                     ": expected ", DataTypeString(expected[i]),
+                                     " but got ", DataTypeString(received[i]),
+                                     ".");
+    }
+  }
   return Status::OK();
 }
 
-}  // namespace dataset
+Status VerifyShapesCompatible(const std::vector<PartialTensorShape>& expected,
+                              const std::vector<PartialTensorShape>& received) {
+  if (expected.size() != received.size()) {
+    return errors::InvalidArgument(
+        "Number of components does not match: expected ", expected.size(),
+        " shapes but got ", received.size(), ".");
+  }
+  for (size_t i = 0; i < expected.size(); ++i) {
+    if (!expected[i].IsCompatibleWith(received[i])) {
+      return errors::InvalidArgument("Incompatible shapes at component ", i,
+                                     ": expected ", expected[i].DebugString(),
+                                     " but got ", received[i].DebugString(),
+                                     ".");
+    }
+  }
 
+  return Status::OK();
+}
+
+}  // namespace data
 }  // namespace tensorflow
