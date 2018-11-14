@@ -1,4 +1,5 @@
 tensorflow/contrib/image/kernels/image_ops.cc
+tensorflow/contrib/image/kernels/segmentation_ops.cc
 tensorflow/contrib/image/ops/image_ops.cc
 tensorflow/core/kernels/cwise_op_atan2.cc
 tensorflow/core/kernels/cwise_op_cos.cc
