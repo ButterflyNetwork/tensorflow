@@ -241,6 +241,7 @@ REGISTER_UNIQUE(bool)
 #undef REGISTER_UNIQUE
 
 //Need to register an additional CPU kernel for int64 input to int32 output
+//TODO(adaks): Instead call REGISTER_UNIQUE(int64)
 REGISTER_KERNEL_BUILDER(Name("Unique")                          \
                             .Device(DEVICE_CPU)                 \
                             .TypeConstraint<int64>("T")         \
