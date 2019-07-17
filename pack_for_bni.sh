@@ -1,8 +1,9 @@
 #!/bin/bash
 
 TAR=tensorflow.tar
-find ./tensorflow/contrib/makefile/downloads -name '*.h' | tar cvf $TAR -s '/^./include/' -T -
+find ./tensorflow/contrib/makefile/downloads -name '*.*' | tar cvf $TAR -s '/^./include/' -T -
 find ./tensorflow/contrib/makefile/gen/proto -name '*.h' | tar rvf $TAR -s '/^./include/' -T -
+find ./tensorflow/contrib/makefile/gen/protobuf_ios/lib/ios_arm64/include | tar rvf $TAR -s '/^./include/' -T -
 find ./tensorflow/core -name '*.h' | tar rvf $TAR -s '/^./include/' -T -
 tar rvf $TAR -s '/^./include/' ./third_party/eigen3/unsupported/Eigen
 tar rvf $TAR -s '/^./include/' ./tensorflow/contrib/makefile/downloads/eigen/unsupported/Eigen
