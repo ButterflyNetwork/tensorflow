@@ -96,6 +96,7 @@ tensorflow/core/kernels/cwise_op_sqrt.cc
 tensorflow/core/kernels/cwise_op_square.cc
 tensorflow/core/kernels/cwise_op_squared_difference.cc
 tensorflow/core/kernels/cwise_op_sub.cc
+tensorflow/core/kernels/cwise_op_tan.cc
 tensorflow/core/kernels/cwise_op_tanh.cc
 tensorflow/core/kernels/cwise_op_xdivy.cc
 tensorflow/core/kernels/cwise_op_xlogy.cc
@@ -110,6 +111,7 @@ tensorflow/core/kernels/dense_update_ops.cc
 tensorflow/core/kernels/depthtospace_op.cc
 tensorflow/core/kernels/depthwise_conv_op.cc
 tensorflow/core/kernels/dequantize_op.cc
+tensorflow/core/kernels/dilation_ops.cc
 tensorflow/core/kernels/dynamic_partition_op.cc
 tensorflow/core/kernels/dynamic_stitch_op.cc
 tensorflow/core/kernels/encode_proto_op.cc
