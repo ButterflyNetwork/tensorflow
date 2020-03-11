@@ -73,7 +73,12 @@ The script for building android is colocated with the ios script:
 ```
 ./tensorflow/tensorflow/contrib/makefile/build_all_android.sh*
 ```
-This script uses `armeabi-v7a` as the default architecture.
+This script defaults to building for an `armeabi-v7a` architecture. Butterfly needs to build the following targets:
+
+```
+    ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
+    ./tensorflow/contrib/makefile/build_all_android.sh -a x86_64
+```
 
 #### NDK
 
@@ -130,8 +135,8 @@ compilation of tensorflow proper.
 Seems each version of the NDK is slightly different, and the makefiles are very brittle - they expect to find headers
 and libraries in very specific places.
 
-Now version 15 of the `NDK` seems to get much further along, so focused on this for a bit. 
-On OSX this seems to barf fairly early, so I tried to run on a docker ubuntu:16.04 container using the following:
+The `android-ndk-r15c` version of the `NDK` gets much further along. 
+On OSX this seems to barf fairly early, but on  a docker ubuntu:16.04 container using the following:
 
        apt update
        apt upgrade
@@ -145,7 +150,7 @@ On OSX this seems to barf fairly early, so I tried to run on a docker ubuntu:16.
        cd tensorflow
        ./tensorflow/contrib/makefile/build_all_android.sh
 
-But after a while, we then fail on this: 
+we get very solid progress. However, after a while, we then fail on this: 
 ```
 ./tensorflow/contrib/image/kernels/image_ops.h:93:51: error: 'round' is not a member of 'std'
      return read_with_fill_value(batch, DenseIndex(std::round(y)),
@@ -154,10 +159,8 @@ This `std::round(y)` issue seems to be a known
 [error](https://github.com/tensorflow/tensorflow/issues/24358#issuecomment-447202118) with
 older NDKs and GNU tools in general (it's a bug)
 
-So I found all the code the uses std::round(), and replaced it with round() (thanks emacs macros!).  About 16 source
-files were affected. 
-
-Compilation then proceeded for a while.  Finally barfing on 
+After replacing all the code that uses `std::round()` with  plain `round()` (About 16 source
+files - emacs macros!), compilation then proceeded, but then barfed on 
 ```
 arm-linux-androideabi-g++: internal compiler error: Killed (program cc1plus)
 Please submit a full bug report,
@@ -179,18 +182,17 @@ So I spun up a new `dl-android` node  on an m5a.4xlarge instance running ubuntu 
    13  git clone git@github.com:ButterflyNetwork/tensorflow.git
    19  emacs -nw `find . -type f | xargs grep -l std::round\( 2>/dev/null`
    26  cd tensorflow/
-   29  ./tensorflow/contrib/makefile/build_all_android.sh 
+   29  ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
 ```
-Compilation finished!  
+Success! Compilation finished!  
 
+Libraries and headers are now on 
+[software/develop](https://github.com/ButterflyNetwork/software/tree/develop/host/3rdParty/tensorflow-1.13.2)
+ 
+In particular, we have installed 
+```angular2
+libnsync.a
+libprotobuf-lite.a
+libprotobuf.a
+libtensorflow-core.a
 ```
-ubuntu@ip-10-0-6-111:~/tensorflow$ find ./tensorflow/contrib/makefile/gen  -name "*.a" | grep -v protobuf-host
-./tensorflow/contrib/makefile/gen/lib/android_armeabi-v7a/libtensorflow-core.a
-./tensorflow/contrib/makefile/gen/protobuf_android/armeabi-v7a/lib/libprotobuf-lite.a
-./tensorflow/contrib/makefile/gen/protobuf_android/armeabi-v7a/lib/libprotobuf.a
-./tensorflow/contrib/makefile/gen/protobuf_android/armeabi-v7a/lib/libprotoc.a
-```
-Not sure if these are complete - In the iOS world, we used the script pack_for_bni.sh. This seems to rely on 
-`libprotobuf-lite.a libprotobuf.a libtensorflow-core.a nsync.a`.  We build the latter too, but it's not under the `gen`
-output.
-
