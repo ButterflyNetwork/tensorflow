@@ -355,8 +355,8 @@ $(MARCH_OPTION) \
 -fPIC
 	INCLUDES = \
 -I$(NDK_ROOT)/sources/android/support/include \
--I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/include \
--I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/$(ANDROID_ARCH)/include \
+-I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/include \
+-I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/libs/$(ANDROID_ARCH)/include \
 -I. \
 -I$(MAKEFILE_DIR)/downloads/ \
 -I$(MAKEFILE_DIR)/downloads/eigen \
@@ -384,7 +384,7 @@ $(TARGET_NSYNC_LIB) \
 	LDFLAGS := \
 $(MARCH_OPTION) \
 -L$(MAKEFILE_DIR)/gen/protobuf_android/$(ANDROID_ARCH)/lib \
--L$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/$(ANDROID_ARCH) \
+-L$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/libs/$(ANDROID_ARCH) \
 -fPIE \
 -pie \
 -v
