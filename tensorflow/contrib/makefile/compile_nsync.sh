@@ -264,7 +264,7 @@ for arch in $archs; do
                                           -DNSYNC_USE_CPP11_TIMEPOINT -DNSYNC_ATOMIC_CPP11 \
                                           -I$(NDK_ROOT)/sources/android/support/include \
                                           -I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/include \
-                                          -I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/libs/'"$arch"'/include \
+                                          -I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++abi/include \
                                           -I../../platform/c++11 -I../../platform/gcc \
                                           -I../../platform/posix -pthread
                         PLATFORM_CFLAGS=-std=c++11 -Wno-narrowing '"$march_option"' -fPIE -fPIC
