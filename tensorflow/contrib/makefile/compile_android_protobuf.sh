@@ -165,7 +165,7 @@ CXXFLAGS="-frtti -fexceptions ${march_option} \
 -I${NDK_ROOT}/sources/cxx-stl/llvm-libc++/include \
 -I${NDK_ROOT}/sources/cxx-stl/llvm-libc++abi/include" \
 LDFLAGS="-L${NDK_ROOT}/sources/cxx-stl/llvm-libc++/libs/${ARCHITECTURE}" \
-LIBS="-llog -lz -lc++_static -lc++abi -landroid_support"
+LIBS="-llog -lz -lc++_static -lc++abi"
 
 if [ $? -ne 0 ]
 then
