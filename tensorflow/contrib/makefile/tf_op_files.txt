@@ -297,11 +297,15 @@ tensorflow/core/kernels/xsmm_conv2d.cc
 tensorflow/core/ops/array_grad.cc
 tensorflow/core/ops/array_ops.cc
 tensorflow/core/ops/audio_ops.cc
+tensorflow/core/ops/bitwise_ops.cc
 tensorflow/core/ops/boosted_trees_ops.cc
 tensorflow/core/ops/candidate_sampling_ops.cc
 tensorflow/core/ops/control_flow_ops.cc
 tensorflow/core/ops/ctc_ops.cc
 tensorflow/core/ops/data_flow_ops.cc
+tensorflow/core/ops/dataset_ops.cc
+tensorflow/core/ops/decode_proto_ops.cc
+tensorflow/core/ops/encode_proto_ops.cc
 tensorflow/core/ops/function_ops.cc
 tensorflow/core/ops/functional_grad.cc
 tensorflow/core/ops/functional_ops.cc
@@ -309,6 +313,7 @@ tensorflow/core/ops/image_ops.cc
 tensorflow/core/ops/io_ops.cc
 tensorflow/core/ops/linalg_ops.cc
 tensorflow/core/ops/logging_ops.cc
+tensorflow/core/ops/lookup_ops.cc
 tensorflow/core/ops/manip_ops.cc
 tensorflow/core/ops/math_grad.cc
 tensorflow/core/ops/math_ops.cc
@@ -323,5 +328,6 @@ tensorflow/core/ops/script_ops.cc
 tensorflow/core/ops/sendrecv_ops.cc
 tensorflow/core/ops/sparse_ops.cc
 tensorflow/core/ops/state_ops.cc
+tensorflow/core/ops/stateless_random_ops.cc
 tensorflow/core/ops/string_ops.cc
 tensorflow/core/ops/training_ops.cc
