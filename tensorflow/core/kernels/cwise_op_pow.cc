@@ -23,7 +23,7 @@ REGISTER2(BinaryOp, CPU, "Pow", functor::safe_pow, int32, int64);
 #ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "Pow", functor::pow, int32);
 #endif
-  
+
 #if GOOGLE_CUDA
 REGISTER4(BinaryOp, GPU, "Pow", functor::pow, float, Eigen::half, double,
           int64);

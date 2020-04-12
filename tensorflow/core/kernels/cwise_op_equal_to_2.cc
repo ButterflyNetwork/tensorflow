@@ -23,7 +23,7 @@ namespace tensorflow {
 #ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "Equal", functor::equal_to, string);
 #endif
-  
+
 #if !defined(__ANDROID_TYPES_SLIM__)
 
 REGISTER6(BinaryOp, CPU, "Equal", functor::equal_to, int32, int64, complex64,

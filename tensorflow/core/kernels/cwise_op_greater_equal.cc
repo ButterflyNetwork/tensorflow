@@ -22,7 +22,7 @@ REGISTER9(BinaryOp, CPU, "GreaterEqual", functor::greater_equal, float,
 #ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "GreaterEqual", functor::greater_equal, int32);
 #endif
-  
+
 #if GOOGLE_CUDA
 REGISTER7(BinaryOp, GPU, "GreaterEqual", functor::greater_equal, float,
           Eigen::half, double, int64, uint8, int8, int16);

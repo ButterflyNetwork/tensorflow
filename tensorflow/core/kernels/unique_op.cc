@@ -247,7 +247,7 @@ REGISTER_KERNEL_BUILDER(Name("Unique")                          \
                             .Device(DEVICE_CPU)                 \
                             .TypeConstraint<int64>("T")         \
                             .TypeConstraint<int32>("out_idx"),  \
-                         UniqueOp<int64, int32>);               
+                         UniqueOp<int64, int32>);
 #endif
 
 // Fake integer GPU kernels so that the use of Unique in optimizers (to
