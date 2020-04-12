@@ -239,14 +239,16 @@ TF_CALL_REAL_NUMBER_TYPES(REGISTER_UNIQUE);
 REGISTER_UNIQUE(string)
 #undef REGISTER_UNIQUE
 
+
 //Need to register an additional CPU kernel for int64 input to int32 output
 //TODO(adaks): Instead call REGISTER_UNIQUE(int64)
+#ifdef __ANDROID_TYPES_SLIM__
 REGISTER_KERNEL_BUILDER(Name("Unique")                          \
                             .Device(DEVICE_CPU)                 \
                             .TypeConstraint<int64>("T")         \
                             .TypeConstraint<int32>("out_idx"),  \
-                         UniqueOp<int64, int32>);               \
-
+                         UniqueOp<int64, int32>);               
+#endif
 
 // Fake integer GPU kernels so that the use of Unique in optimizers (to
 // de-duplicate sparse gradient indices) does not conflict with gradients being

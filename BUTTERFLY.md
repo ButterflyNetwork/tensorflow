@@ -73,8 +73,7 @@ The script for building android is colocated with the ios script:
 ```
 ./tensorflow/tensorflow/contrib/makefile/build_all_android.sh*
 ```
-This script defaults to building for an `armeabi-v7a` architecture.
-Butterfly needs to build the following targets:
+This script defaults to building for an `armeabi-v7a` architecture. Butterfly needs to build the following targets:
 
 ```
     ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
@@ -83,75 +82,115 @@ Butterfly needs to build the following targets:
 
 #### NDK
 
-For android, you need to install the NDK. This is the toolchain used for
-cross compilation. There are a number
-of ways to do this.  The easiest is to install Android Studio.
-In instances where you don't want to install the Android SDK,
-you can install the Android command line tools
+For android, you need to install the NDK. This is the toolchain used for cross compilation. There are a number 
+of ways to do this.  The easiest is to install Android Studio and to then fuss with 
+
+`Preferences for New Projects:: Appearance & Behavior > System Settings > Android SDK`
+
+Under the covers this installs a command line tool, the `sdkmanager`, that is used to manage all installed sdk
+components.  If you can't use the GUI (say in docker), you can use this directly as follows:
+
+`~/Library/Android/sdk/tools/bin$ ./sdkmanager --list `
+
+The available versions of the $NDK$ with this tool are:
+```
+ndk;16.1.4479499
+ndk;17.2.4988734
+ndk;18.1.5063045
+ndk;19.2.5345600
+ndk;20.0.5594570
+ndk;20.1.5948944
+ndk;21.0.6113669
+```
+In instances where you don't want to install the Android SDK, you can install the Android command line tools 
 directly using  
 ```
 wget https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip
 ```
 
 Finally, if you need an older version of the ndk, you can get these 
-from [here](https://developer.android.com/ndk/downloads/older_releases).
-For instance:
+from [here](https://developer.android.com/ndk/downloads/older_releases).  For instance:
 ```
 wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
 ```
-One issue with Android: linking requires a mapping of std:: to
- std::__ndk1. For tensorflow, this requires linking against the
- `llvm libc++` family of libraries rather than the default `gcc libstdc++`
- libraries. Supporting changes to build file include paths, library paths,
- and library archives have been made on the branch
- [llvm](https://github.com/ButterflyNetwork/tensorflow/compare/master...ButterflyNetwork:llvm):
+Now the funky thing about the olders NDKs (<19) is that they are not deployed as standalone toolchains; 
+the system roots and structure of includes in all of them are not
+configured (e.g. the compiler can't find <stdio.h>). You can use `$NDK_ROOT/build/toolsmake_standalone_toolchain.py`
+to configure, but this is a rabbit hole you don't need to go down - our makefiles expect an unconfigured $NDK_ROOT.
 
 #### Butterfly/Tensorflow (~1.13)
  
 Because our fork is an older version of 
-tensorflow, we need to select a compatible $NDK$ version.
-For our branch, the candidate versions
+tensorflow, we need to select a compatible $NDK$ version. For our branch, the candidate versions
 are described 
 [here](https://github.com/ButterflyNetwork/tensorflow/blob/5f94511e57d55d6fbe840f117b8fec3f77f6aa44/configure.py#L46)
 ```
 _SUPPORTED_ANDROID_NDK_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18]
 ```
-Any of these should work. But the makefile seems most compatible with
-the `android-ndk-r15c` structure.
+Now you'd think any of these would work.  But I tried versions 18, 17, 16; these
+ all resulted in failures early during compilation of the internal protobuf
+ target (`tensorflow/contrib/makefile/compile_android_protobuf.sh -c`) that precedes 
+compilation of tensorflow proper.
 
-I had some problems buiding on OSX, so I spun up a new `dl-android` node
-on an m5a.4xlarge
-instance running ubuntu 16.04 and set up as follows:
+Seems each version of the NDK is slightly different, and the makefiles are very brittle - they expect to find headers
+and libraries in very specific places.
+
+The `android-ndk-r15c` version of the `NDK` gets much further along. 
+On OSX this seems to barf fairly early, but on  a docker ubuntu:16.04 container using the following:
+
+       apt update
+       apt upgrade
+       apt-get install build-essential
+       apt-get install autoconf automake libtool curl make g++ unzip zlib1g-dev git python
+       apt install wget
+       wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
+       unzip android-ndk-r15c-linux-x86_64.zip
+       export NDK_ROOT=/android-ndk-r15c
+       git clone https://github.com/ButterflyNetwork/tensorflow.git
+       cd tensorflow
+       ./tensorflow/contrib/makefile/build_all_android.sh
+
+we get very solid progress. However, after a while, we then fail on this: 
+```
+./tensorflow/contrib/image/kernels/image_ops.h:93:51: error: 'round' is not a member of 'std'
+     return read_with_fill_value(batch, DenseIndex(std::round(y)),
+```
+This `std::round(y)` issue seems to be a known 
+[error](https://github.com/tensorflow/tensorflow/issues/24358#issuecomment-447202118) with
+older NDKs and GNU tools in general (it's a bug)
+
+After replacing all the code that uses `std::round()` with  plain `round()` (About 16 source
+files - emacs macros!), compilation then proceeded, but then barfed on 
+```
+arm-linux-androideabi-g++: internal compiler error: Killed (program cc1plus)
+Please submit a full bug report,
+with preprocessed source if appropriate.
+See <http://source.android.com/source/report-bugs.html> for instructions.
+```
+This seems to arise from an out of memory exception.
+
+So I spun up a new `dl-android` node  on an m5a.4xlarge instance running ubuntu 16.04 and set up as follows:
 ```
     1  sudo apt update
     2  sudo apt upgrade
     3  sudo apt-get install build-essential
     5  sudo apt-get install autoconf automake libtool curl make g++ unzip zlib1g-dev git python
     7  wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
+    8  sudo apt install emacs
    10  unzip android-ndk-r15c-linux-x86_64.zip 
    12  export NDK_ROOT=/home/ubuntu/android-ndk-r15c
    13  git clone git@github.com:ButterflyNetwork/tensorflow.git
+   19  emacs -nw `find . -type f | xargs grep -l std::round\( 2>/dev/null`
    26  cd tensorflow/
    29  ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
 ```
+Success! Compilation finished!  
 
-Running against android-ndk-r15c with architecture `arm64-v8a` builds
-the 4 libraries of interest. However, the build script,
- ```
-./build_all_android.sh -a arm64-v8a
-```
-fails when building follow-up(?) benchmarks with what looks like some
-namespace related errors. This is worrisome and needs some investigation.
-```
-/home/ubuntu/tensorflow/tensorflow/contrib/makefile/gen/bin/android_arm64-v8a/benchmark
-```
-
-
-Libraries and headers are installed here:
+Libraries and headers are now on 
 [software/develop](https://github.com/ButterflyNetwork/software/tree/develop/host/3rdParty/tensorflow-1.13.2)
  
-In particular, we have the following static libraries
-```
+In particular, we have installed 
+```angular2
 libnsync.a
 libprotobuf-lite.a
 libprotobuf.a

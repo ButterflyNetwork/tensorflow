@@ -263,8 +263,8 @@ for arch in $archs; do
                                           $(NDK_ROOT)/platforms/android-'"$android_api_version"'/arch-'"$sysroot_arch"' \
                                           -DNSYNC_USE_CPP11_TIMEPOINT -DNSYNC_ATOMIC_CPP11 \
                                           -I$(NDK_ROOT)/sources/android/support/include \
-                                          -I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/include \
-                                          -I$(NDK_ROOT)/sources/cxx-stl/llvm-libc++abi/include \
+                                          -I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/include \
+                                          -I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/'"$arch"'/include \
                                           -I../../platform/c++11 -I../../platform/gcc \
                                           -I../../platform/posix -pthread
                         PLATFORM_CFLAGS=-std=c++11 -Wno-narrowing '"$march_option"' -fPIE -fPIC

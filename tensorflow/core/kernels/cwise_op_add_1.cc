@@ -21,7 +21,9 @@ REGISTER6(BinaryOp, CPU, "Add", functor::add, float, Eigen::half, double, int32,
 REGISTER6(BinaryOp, CPU, "AddV2", functor::add, float, Eigen::half, double,
           int32, int64, bfloat16);
 
+#ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "Add", functor::add, int32);
+#endif
 
 #if GOOGLE_CUDA
 REGISTER3(BinaryOp, GPU, "Add", functor::add, float, Eigen::half, double);

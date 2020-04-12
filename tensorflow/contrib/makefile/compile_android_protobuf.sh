@@ -144,7 +144,7 @@ export SYSROOT=\
 export CC="${cc_prefix} ${bin_prefix}-gcc --sysroot ${SYSROOT}"
 export CXX="${cc_prefix} ${bin_prefix}-g++ --sysroot ${SYSROOT}"
 export CXXSTL=\
-"${NDK_ROOT}/sources/cxx-stl/llvm-libc++/libs/${ARCHITECTURE}"
+"${NDK_ROOT}/sources/cxx-stl/gnu-libstdc++/4.9/libs/${ARCHITECTURE}"
 
 ./autogen.sh
 if [ $? -ne 0 ]
@@ -162,10 +162,10 @@ fi
 CFLAGS="${march_option}" \
 CXXFLAGS="-frtti -fexceptions ${march_option} \
 -I${NDK_ROOT}/sources/android/support/include \
--I${NDK_ROOT}/sources/cxx-stl/llvm-libc++/include \
--I${NDK_ROOT}/sources/cxx-stl/llvm-libc++abi/include" \
-LDFLAGS="-L${NDK_ROOT}/sources/cxx-stl/llvm-libc++/libs/${ARCHITECTURE}" \
-LIBS="-llog -lz -lc++_static -lc++abi"
+-I${NDK_ROOT}/sources/cxx-stl/gnu-libstdc++/4.9/include \
+-I${NDK_ROOT}/sources/cxx-stl/gnu-libstdc++/4.9/libs/${ARCHITECTURE}/include" \
+LDFLAGS="-L${NDK_ROOT}/sources/cxx-stl/gnu-libstdc++/4.9/libs/${ARCHITECTURE}" \
+LIBS="-llog -lz -lgnustl_static"
 
 if [ $? -ne 0 ]
 then

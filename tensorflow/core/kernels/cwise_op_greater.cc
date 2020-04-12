@@ -18,7 +18,11 @@ limitations under the License.
 namespace tensorflow {
 REGISTER9(BinaryOp, CPU, "Greater", functor::greater, float, Eigen::half,
           double, int32, int64, uint8, int8, int16, bfloat16);
+
+#ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "Greater", functor::greater_equal, int32);
+#endif
+
 #if GOOGLE_CUDA
 REGISTER7(BinaryOp, GPU, "Greater", functor::greater, float, Eigen::half,
           double, int64, uint8, int8, int16);
