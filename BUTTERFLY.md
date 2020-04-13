@@ -80,6 +80,38 @@ Butterfly needs to build the following targets:
     ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
     ./tensorflow/contrib/makefile/build_all_android.sh -a x86_64
 ```
+Prior to running these scripts you'll need to first switch to the 
+[android](https://github.com/ButterflyNetwork/tensorflow/tree/android) git branch and 
+export `NDK_ROOT` as described below.
+
+### Linux Box
+
+We have a dedicated linux machine for Android builds. (dl-android). `ssh ubuntu@dl-android` 
+over with
+the usual dl-research pem key. You may have to spin up the machine from the AWS console
+first.
+The makefiles we use support linux as a target (and not OSX). So this gives
+us a handy immediate testing environment. There is a directory, `/home/ubuntu/tf-toy`
+on this machine that has basic `pbmz` loading program and makefile. (The bazel build file
+needs a fix...)
+
+The `dl-android` node lives on an m5a.4xlarge
+instance running ubuntu 16.04 and set up as follows:
+```
+    sudo apt update
+    sudo apt upgrade
+    sudo apt-get install build-essential
+    sudo apt-get install autoconf automake libtool curl make g++ unzip zlib1g-dev git python
+    wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
+    unzip android-ndk-r15c-linux-x86_64.zip 
+    export NDK_ROOT=/home/ubuntu/android-ndk-r15c
+    git clone git@github.com:ButterflyNetwork/tensorflow.git
+    cd tensorflow/
+    git checkout android
+    ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
+
+    Also followed instructions for git-lfs install.
+```
 
 #### NDK
 
@@ -102,9 +134,9 @@ wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
 One issue with Android: linking requires a mapping of std:: to
  std::__ndk1. For tensorflow, this requires linking against the
  `llvm libc++` family of libraries rather than the default `gcc libstdc++`
- libraries. Supporting changes to build file include paths, library paths,
+ libraries. Supporting changes to the build file include paths, library paths,
  and library archives have been made on the branch
- [llvm](https://github.com/ButterflyNetwork/tensorflow/compare/master...ButterflyNetwork:llvm):
+ [android](https://github.com/ButterflyNetwork/tensorflow/tree/android) 
 
 #### Butterfly/Tensorflow (~1.13)
  
@@ -119,33 +151,14 @@ _SUPPORTED_ANDROID_NDK_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18]
 Any of these should work. But the makefile seems most compatible with
 the `android-ndk-r15c` structure.
 
-I had some problems buiding on OSX, so I spun up a new `dl-android` node
-on an m5a.4xlarge
-instance running ubuntu 16.04 and set up as follows:
-```
-    1  sudo apt update
-    2  sudo apt upgrade
-    3  sudo apt-get install build-essential
-    5  sudo apt-get install autoconf automake libtool curl make g++ unzip zlib1g-dev git python
-    7  wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
-   10  unzip android-ndk-r15c-linux-x86_64.zip 
-   12  export NDK_ROOT=/home/ubuntu/android-ndk-r15c
-   13  git clone git@github.com:ButterflyNetwork/tensorflow.git
-   26  cd tensorflow/
-   29  ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
-```
-
 Running against android-ndk-r15c with architecture `arm64-v8a` builds
 the 4 libraries of interest. However, the build script,
  ```
 ./build_all_android.sh -a arm64-v8a
 ```
 fails when building follow-up(?) benchmarks with what looks like some
-namespace related errors. This is worrisome and needs some investigation.
-```
-/home/ubuntu/tensorflow/tensorflow/contrib/makefile/gen/bin/android_arm64-v8a/benchmark
-```
-
+namespace related errors. This seems correlated with the new namespace introducted by the 
+libc++ libraries.
 
 Libraries and headers are installed here:
 [software/develop](https://github.com/ButterflyNetwork/software/tree/develop/host/3rdParty/tensorflow-1.13.2)
