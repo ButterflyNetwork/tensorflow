@@ -67,7 +67,7 @@ sh pack_for_bni.sh
 
 Change the version in `TensorflowPod.podspec` and create a release.
 
-### Android (WIP)
+### Android
 
 The script for building android is colocated with the ios script:
 ```
@@ -80,9 +80,49 @@ Butterfly needs to build the following targets:
     ./tensorflow/contrib/makefile/build_all_android.sh -a arm64-v8a
     ./tensorflow/contrib/makefile/build_all_android.sh -a x86_64
 ```
-Prior to running these scripts you'll need to first switch to the 
-[android](https://github.com/ButterflyNetwork/tensorflow/tree/android) git branch and 
-export `NDK_ROOT` as described below.
+Prior to running these scripts you'll need to set your  
+`NDK_ROOT` as described below.
+
+In addition the Android runtime environment requires a mapping of std:: to
+ std::__ndk1. For tensorflow, this requires linking against the
+ `llvm libc++` family of libraries rather than the default `gcc libstdc++`
+ libraries. Supporting changes to the build file include paths, library paths,
+ and library archives have been made on the branch
+ [android](https://github.com/ButterflyNetwork/tensorflow/tree/android) 
+ So switch to this branch prior to building. Buids of the libraries will succeed, 
+ but the build itself fails when building follow-up(?) benchmarks with what looks like some
+ namespace related errors. This seems to be correlated with the new namespace introduced by the 
+ libc++ libraries.
+
+### NDK
+
+For android, you need to install the NDK. This is the toolchain used for
+cross compilation. There are a number
+of ways to do this.  The easiest is to install Android Studio.
+In instances where you don't want to install the Android SDK,
+you can install the Android command line tools
+directly using  
+```
+wget https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip
+```
+
+Finally, if you need an older version of the ndk, you can get these 
+from [here](https://developer.android.com/ndk/downloads/older_releases).
+For instance:
+```
+wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
+```
+
+Because our fork is an older version of 
+tensorflow, we need to select a compatible NDK version.
+For our branch, the candidate versions
+are described 
+[here](https://github.com/ButterflyNetwork/tensorflow/blob/5f94511e57d55d6fbe840f117b8fec3f77f6aa44/configure.py#L46)
+```
+_SUPPORTED_ANDROID_NDK_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18]
+```
+Any of these should work. But the makefile seems most compatible with
+the `android-ndk-r15c` structure.
 
 ### Linux Box
 
@@ -113,52 +153,9 @@ instance running ubuntu 16.04 and set up as follows:
     Also followed instructions for git-lfs install.
 ```
 
-#### NDK
 
-For android, you need to install the NDK. This is the toolchain used for
-cross compilation. There are a number
-of ways to do this.  The easiest is to install Android Studio.
-In instances where you don't want to install the Android SDK,
-you can install the Android command line tools
-directly using  
-```
-wget https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip
-```
+### Butterfly/Tensorflow (~1.13)
 
-Finally, if you need an older version of the ndk, you can get these 
-from [here](https://developer.android.com/ndk/downloads/older_releases).
-For instance:
-```
-wget https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip
-```
-One issue with Android: linking requires a mapping of std:: to
- std::__ndk1. For tensorflow, this requires linking against the
- `llvm libc++` family of libraries rather than the default `gcc libstdc++`
- libraries. Supporting changes to the build file include paths, library paths,
- and library archives have been made on the branch
- [android](https://github.com/ButterflyNetwork/tensorflow/tree/android) 
-
-#### Butterfly/Tensorflow (~1.13)
- 
-Because our fork is an older version of 
-tensorflow, we need to select a compatible $NDK$ version.
-For our branch, the candidate versions
-are described 
-[here](https://github.com/ButterflyNetwork/tensorflow/blob/5f94511e57d55d6fbe840f117b8fec3f77f6aa44/configure.py#L46)
-```
-_SUPPORTED_ANDROID_NDK_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18]
-```
-Any of these should work. But the makefile seems most compatible with
-the `android-ndk-r15c` structure.
-
-Running against android-ndk-r15c with architecture `arm64-v8a` builds
-the 4 libraries of interest. However, the build script,
- ```
-./build_all_android.sh -a arm64-v8a
-```
-fails when building follow-up(?) benchmarks with what looks like some
-namespace related errors. This seems correlated with the new namespace introducted by the 
-libc++ libraries.
 
 Libraries and headers are installed here:
 [software/develop](https://github.com/ButterflyNetwork/software/tree/develop/host/3rdParty/tensorflow-1.13.2)
