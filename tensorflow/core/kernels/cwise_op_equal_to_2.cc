@@ -20,7 +20,9 @@ namespace tensorflow {
 // REGISTER# macros ignore all but first type (assumed to be float) when
 // __ANDROID_TYPES_SLIM__ is defined.  Since this file is the second of two
 // sharded files, only make its register calls when not __ANDROID_TYPES_SLIM__.
+#ifdef __ANDROID_TYPES_SLIM__
 REGISTER(BinaryOp, CPU, "Equal", functor::equal_to, string);
+#endif
 
 #if !defined(__ANDROID_TYPES_SLIM__)
 

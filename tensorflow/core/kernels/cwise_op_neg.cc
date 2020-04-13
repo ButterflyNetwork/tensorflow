@@ -18,7 +18,10 @@ limitations under the License.
 namespace tensorflow {
 REGISTER7(UnaryOp, CPU, "Neg", functor::neg, float, Eigen::half, double, int32,
           complex64, int64, complex128);
+
+#ifdef __ANDROID_TYPES_SLIM__
 REGISTER(UnaryOp, CPU, "Neg", functor::neg, int32);
+#endif
 
 #ifdef TENSORFLOW_USE_SYCL
 REGISTER3(UnaryOp, SYCL, "Neg", functor::neg, float, double, int64);
