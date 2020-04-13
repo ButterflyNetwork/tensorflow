@@ -89,7 +89,7 @@ In addition the Android runtime environment requires a mapping of std:: to
  libraries. Supporting changes to the build file include paths, library paths,
  and library archives have been made on the branch
  [android](https://github.com/ButterflyNetwork/tensorflow/tree/android) 
- So switch to this branch prior to building. Buids of the libraries will succeed, 
+ So switch to this branch prior to building. Builds of the libraries will succeed,
  but the build itself fails when building follow-up(?) benchmarks with what looks like some
  namespace related errors. This seems to be correlated with the new namespace introduced by the 
  libc++ libraries.
