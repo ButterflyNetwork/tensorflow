@@ -12,6 +12,7 @@ load(
 package(
     default_visibility = [
         "//tensorflow/core:__pkg__",
+        "//tensorflow/lite/delegates/flex:__pkg__"
     ],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -23,7 +24,10 @@ cc_library(
     hdrs = glob(["*.h"]),
     copts = tf_copts(),
     linkstatic = 1,
-    visibility = ["//tensorflow/core:__pkg__"],
+    visibility = [
+        "//tensorflow/core:__pkg__",
+        "//tensorflow/lite/delegates/flex:__pkg__",
+    ],
     deps = ["//tensorflow/core:framework"],
     alwayslink = 1,
 )

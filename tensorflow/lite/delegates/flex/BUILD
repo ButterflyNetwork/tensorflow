@@ -73,6 +73,7 @@ tf_cc_test(
 tflite_flex_cc_library(
     name = "delegate",
     visibility = ["//visibility:public"],
+    additional_deps = ["//tensorflow/core/user_ops:user_ops_op_lib"]
 )
 
 # Delegate implementation that does *not* pull in the standard set of TensorFlow
