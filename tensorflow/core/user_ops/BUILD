@@ -20,6 +20,7 @@ package(
 cc_library(
     name = "user_ops_op_lib",
     srcs = glob(["*.cc"]),
+    hdrs = glob(["*.h"]),
     copts = tf_copts(),
     linkstatic = 1,
     visibility = ["//tensorflow/core:__pkg__"],
