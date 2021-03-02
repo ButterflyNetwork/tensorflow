@@ -29,6 +29,8 @@ TfLiteRegistration* Register_NUMERIC_VERIFY_REF();
 TfLiteRegistration* Register_AUDIO_SPECTROGRAM();
 TfLiteRegistration* Register_MFCC();
 TfLiteRegistration* Register_DETECTION_POSTPROCESS();
+TfLiteRegistration* Register_ASSIGN_VARIABLE();
+TfLiteRegistration* Register_READ_VARIABLE();
 
 }  // namespace custom
 
@@ -478,6 +480,8 @@ BuiltinRefOpResolver::BuiltinRefOpResolver() {
             tflite::ops::custom::Register_AUDIO_SPECTROGRAM());
   AddCustom("TFLite_Detection_PostProcess",
             tflite::ops::custom::Register_DETECTION_POSTPROCESS());
+  AddCustom("ReadVariable", tflite::ops::custom::Register_READ_VARIABLE());
+  AddCustom("AssignVariable", tflite::ops::custom::Register_ASSIGN_VARIABLE());
 }
 
 }  // namespace builtin
