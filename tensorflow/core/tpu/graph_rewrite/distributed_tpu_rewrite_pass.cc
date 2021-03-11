@@ -4577,8 +4577,14 @@ bool DistributedTPURewritePass::distribute_vars_ = false;
 bool DistributedTPURewritePass::allow_xla_spmd_partition_ = true;
 bool DistributedTPURewritePass::
     replicate_inputs_outputs_by_default_for_xla_spmd_ = false;
+// TODO(b/182404662) - re-enable once resolved.
+#ifndef LIBTPU_ON_GCE
+bool DistributedTPURewritePass::
+    enable_cross_replica_sharding_mirrored_variables_ = false;
+#else
 bool DistributedTPURewritePass::
     enable_cross_replica_sharding_mirrored_variables_ = true;
+#endif
 bool DistributedTPURewritePass::enable_automatic_model_parallelism_ = false;
 bool DistributedTPURewritePass::enable_xla_param_broadcast_ = false;
 

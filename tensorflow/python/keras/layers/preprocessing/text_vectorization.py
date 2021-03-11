@@ -155,7 +155,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       True, the output will have its feature axis padded to `max_tokens` even if
       the number of unique tokens in the vocabulary is less than max_tokens,
       resulting in a tensor of shape [batch_size, max_tokens] regardless of
-      vocabulary size. Defaults to True.
+      vocabulary size. Defaults to False.
     vocabulary: An optional list of vocabulary terms, or a path to a text file
       containing a vocabulary to load into this layer. The file should contain
       one token per line. If the list or file contains the same token multiple
@@ -250,7 +250,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
                ngrams=None,
                output_mode=INT,
                output_sequence_length=None,
-               pad_to_max_tokens=True,
+               pad_to_max_tokens=False,
                vocabulary=None,
                **kwargs):
 
@@ -329,8 +329,13 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
     self._output_mode = output_mode
     self._output_sequence_length = output_sequence_length
-    self._pad_to_max = pad_to_max_tokens
-    self._vocab_size = 0
+    vocab_size = 0
+    # IndexLookup needs to keep track the current vocab size outside of its
+    # layer weights. We persist it as a hidden part of the config during
+    # serialization.
+    if "vocab_size" in kwargs:
+      vocab_size = kwargs["vocab_size"]
+      del kwargs["vocab_size"]
 
     super(TextVectorization, self).__init__(
         combiner=None,
@@ -344,7 +349,8 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
         mask_token=mask_token,
         vocabulary=vocabulary,
         pad_to_max_tokens=pad_to_max_tokens,
-        output_mode=output_mode if output_mode is not None else INT)
+        output_mode=output_mode if output_mode is not None else INT,
+        vocab_size=vocab_size)
 
   def _get_index_lookup_class(self):
     return string_lookup.StringLookup
@@ -438,7 +444,8 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
         "ngrams": self._ngrams_arg,
         "output_mode": self._output_mode,
         "output_sequence_length": self._output_sequence_length,
-        "pad_to_max_tokens": self._pad_to_max,
+        "pad_to_max_tokens": self._index_lookup_layer.pad_to_max_tokens,
+        "vocab_size": self._index_lookup_layer.vocab_size(),
     }
     base_config = super(TextVectorization, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
