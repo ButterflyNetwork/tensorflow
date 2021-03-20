@@ -489,6 +489,7 @@ cc_test(
         "//tensorflow:windows": [],
         "//conditions:default": ["-lm"],
     }),
+    tags = ["tflite_smoke_test"],
     deps = [
         ":kernel_util",
         "//tensorflow/lite/c:common",
@@ -1097,11 +1098,11 @@ cc_test(
         "//tensorflow/lite:testdata/conv_huge_im2col.bin",
     ],
     tags = [
-        "tflite_not_portable_android",
         "tflite_not_portable_ios",
         "tflite_smoke_test",
     ],
     deps = [
+        ":kernel_util",
         "//tensorflow/lite:framework",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/kernels:builtin_ops",

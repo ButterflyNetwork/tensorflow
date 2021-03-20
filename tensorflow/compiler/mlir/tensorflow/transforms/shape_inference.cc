@@ -526,7 +526,7 @@ Attribute ComputeOutputComponent(const ValuePort& value_port,
 // TF Graph version, constant values computed, etc.)
 class ShapeInference {
  public:
-  ShapeInference(int64_t graph_version, MLIRContext* context,
+  ShapeInference(int64_t graph_version, ModuleOp module,
                  bool propagate_caller_callee_constants);
 
   LogicalResult ComputeInputsRequiredForOutput(ValuePort value_port,
@@ -717,7 +717,8 @@ class ShapeInference {
   ValuePortResultMap results_;
 
   // Map from a function to the callers of that function.
-  llvm::DenseMap<FuncOp, SmallVector<Operation*, 4>> callers_of_func_;
+  SymbolTableCollection symbol_table_;
+  SymbolUserMap symbol_users_;
 
   // Queue of functions being processed.
   llvm::DenseSet<FuncOp> queue_set_;
@@ -730,25 +731,15 @@ class ShapeInference {
   bool propagate_caller_callee_constants_;
 };
 
-ShapeInference::ShapeInference(int64_t graph_version, MLIRContext* context,
+ShapeInference::ShapeInference(int64_t graph_version, ModuleOp module,
                                bool propagate_caller_callee_constants)
-    : tf_dialect_(context->getLoadedDialect<TensorFlowDialect>()),
+    : tf_dialect_(module->getContext()->getLoadedDialect<TensorFlowDialect>()),
+      symbol_users_(symbol_table_, module),
       graph_version_(graph_version),
       propagate_caller_callee_constants_(propagate_caller_callee_constants) {}
 
 ArrayRef<Operation*> ShapeInference::GetCallers(FuncOp fn) {
-  auto pair = callers_of_func_.try_emplace(fn);
-  if (pair.second) {
-    ModuleOp module = fn->getParentOfType<ModuleOp>();
-    auto uses = mlir::SymbolTable::getSymbolUses(fn.getOperation(), module);
-    if (uses) {
-      pair.first->second.reserve(pair.first->second.size());
-      for (auto use : *uses) {
-        pair.first->second.push_back(use.getUser());
-      }
-    }
-  }
-  return pair.first->second;
+  return symbol_users_.getUsers(fn);
 }
 
 void ShapeInference::EnqueueCallers(FuncOp fn) {
@@ -1020,27 +1011,23 @@ bool ShapeInference::RefineShapeForPassThroughOps(Operation* op) {
     // TODO(jpienaar): The tf.Cast op, which is uniformly inserted at the
     // moment, cannot handle arbirary types (e.g., it can't handle quantized
     // types). This restriction can be relaxed if not only tf.Cast is used.
-    return t.getDialect().getNamespace().empty() ||
-           isa<TensorFlowDialect>(t.getDialect());
+    ShapedType shaped_type = t.dyn_cast<ShapedType>();
+    if (!shaped_type) return false;
+    Type eltType = shaped_type.getElementType();
+    return eltType.getDialect().getNamespace().empty() ||
+           isa<TensorFlowDialect>(eltType.getDialect());
   };
 
   bool changed = false;
   for (auto entry : llvm::zip(op->getOperands(), op->getResults())) {
-    TensorType operand_type = std::get<0>(entry).getType().cast<TensorType>();
+    Value operand = std::get<0>(entry);
     Value result = std::get<1>(entry);
-    TensorType result_type = result.getType().cast<TensorType>();
-    if (operand_type == result_type) continue;
-    if (!operand_type.hasRank()) continue;
-    if (result_type.hasRank() &&
-        result_type.getShape() == operand_type.getShape())
+    if (!is_allowed_dtype(operand.getType()) ||
+        !is_allowed_dtype(result.getType()))
       continue;
-    if (!is_allowed_dtype(operand_type.getElementType()) ||
-        !is_allowed_dtype(result_type.getElementType()))
-      continue;
-
-    auto new_type = RankedTensorType::get(operand_type.getShape(),
-                                          result_type.getElementType());
-    UpdateTypeAndInsertIncompatibleUseCasts(new_type, result);
+    Type inferred_type = TypeMeet(result.getType(), operand.getType());
+    if (result.getType() == inferred_type) continue;
+    UpdateTypeAndInsertIncompatibleUseCasts(inferred_type, result);
     changed = true;
   }
   return changed;
@@ -1717,7 +1704,7 @@ LogicalResult InferShapeForFunction(FuncOp func,
                                     ArrayRef<ArrayRef<int64_t>> arg_shapes,
                                     int64_t graph_version,
                                     int64_t max_iterations) {
-  ShapeInference context(graph_version, func.getContext(),
+  ShapeInference context(graph_version, func->getParentOfType<ModuleOp>(),
                          /*propagate_caller_callee_constants=*/true);
   if (arg_shapes.empty()) {
     return InferShapeForFunction(context, func, max_iterations);
@@ -1778,7 +1765,7 @@ LogicalResult InferModuleShape(ModuleOp module, int64_t max_iterations) {
   int64_t producer = producer_or.ValueOrDie();
   // TODO(jpienaar): Clean up propagate_NextIterationSinkOp_callee_constants if
   // it is no longer needed.
-  ShapeInference context(producer, module.getContext(),
+  ShapeInference context(producer, module,
                          /*propagate_caller_callee_constants=*/false);
   if (auto main = module.lookupSymbol<mlir::FuncOp>("main"))
     context.enqueue(main);
