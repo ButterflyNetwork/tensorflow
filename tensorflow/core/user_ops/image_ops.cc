@@ -46,8 +46,7 @@ REGISTER_OP("Addons>ImageConnectedComponents")
     .Input("image: dtype")
     .Output("components: int64")
     .Attr(
-        "dtype: {int64, int32, uint16, int16, uint8, int8, half, float, "
-        "double, bool, string}")
+        "dtype: {int32}")
     .SetShapeFn(shape_inference::UnchangedShape)
     .Doc(ImageConnectedComponentsDoc);
 

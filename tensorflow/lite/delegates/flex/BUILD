@@ -72,6 +72,8 @@ tf_cc_test(
 # )
 tflite_flex_cc_library(
     name = "delegate",
+    # Testing model op filtering.
+    models = ["keras_rewrite.tflite"],
     visibility = ["//visibility:public"],
     additional_deps = ["//tensorflow/core/user_ops:user_ops_op_lib"]
 )
