@@ -720,6 +720,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "connected_components",
+    srcs = [
+    "connected_components.cc",
+    ],
+    copts = tflite_copts(),
+    deps = [
+        ":kernel_util",
+    ]
+)
+
 cc_test(
     name = "variable_ops_test",
     size = "small",
