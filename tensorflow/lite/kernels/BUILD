@@ -804,6 +804,8 @@ cc_library(
     ],
     deps = [
         ":builtin_op_kernels",
+        ":variable_op_kernels",
+        ":connected_components",
         "//tensorflow/lite:framework",
         "//tensorflow/lite:tflite_with_xnnpack_optional",
         "//tensorflow/lite/c:common",
@@ -823,6 +825,8 @@ cc_library(
     compatible_with = get_compatible_with_portable(),
     deps = [
         ":builtin_op_kernels",
+        ":variable_op_kernels",
+        ":connected_components",
         "//tensorflow/lite:cc_api",
         "//tensorflow/lite:mutable_op_resolver",
         "//tensorflow/lite:tflite_with_xnnpack_optional",
