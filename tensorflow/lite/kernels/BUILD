@@ -726,9 +726,7 @@ cc_library(
     "connected_components.cc",
     ],
     copts = tflite_copts(),
-    deps = [
-        ":kernel_util",
-    ]
+    deps = BUILTIN_KERNEL_DEPS,
 )
 
 cc_test(

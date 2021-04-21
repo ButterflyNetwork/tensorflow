@@ -41,7 +41,7 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_TYPES_EQ(context, input->type, kTfLiteFloat32);
 
   // output is always Int64
-  output->type = kTfLiteInt64
+  output->type = kTfLiteInt64;
 
   TfLiteIntArray *output_size = TfLiteIntArrayCopy(input->dims);
   return context->ResizeTensor(context, output, output_size);
@@ -53,7 +53,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 
   const int flat_size = GetTensorShape(output).FlatSize();
 
-  auto *output_data = GetTensorData<int64_t>(output)
+  auto *output_data = GetTensorData<int64_t>(output);
 
   for (int i = 0; i < flat_size; ++i) {
     output_data[i] = 1;
@@ -63,8 +63,9 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 }  // namespace connected_component
 
 TfLiteRegistration* Register_CONNECTED_COMPONENTS() {
-  static TfLiteRegistration r = {/*init=*/nullptr, /*free=*/nullptr,
-                                          fill::Prepare, fill::Eval};
+  static TfLiteRegistration r = {
+      /*init=*/nullptr, /*free=*/nullptr, connected_components::Prepare, connected_components::Eval
+  };
   return &r;
 }
 
