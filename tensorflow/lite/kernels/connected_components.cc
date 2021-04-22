@@ -28,8 +28,6 @@ enum KernelType {
 
 TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
 
-  std::cout << "**** In Prepare ****" << std::endl;
-
   // Should only have 1 input and 1 output
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
@@ -40,20 +38,13 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TfLiteTensor *output;
   TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, kOutputTensor, &output));
 
-  std::cout << "**** output type " << TfLiteTypeGetName(output->type) << " ****" << std::endl;
-
-
   // Run with just Float32 for now.
   // TODO: Should probably support int32 too?
   TF_LITE_ENSURE_TYPES_EQ(context, input->type, kTfLiteFloat32);
   TF_LITE_ENSURE_TYPES_EQ(context, output->type, kTfLiteInt64);
 
+  // Resize output to match input.
   TfLiteIntArray *output_size = TfLiteIntArrayCopy(input->dims);
-
-  std::cout << "**** output_size 0 " << output_size->data[0] << std::endl;
-  std::cout << "***  output_size 1 " << output_size->data[1] << std::endl;
-  std::cout << "***  output_size 2 " << output_size->data[2] << std::endl;
-
   return context->ResizeTensor(context, output, output_size);
 }
 

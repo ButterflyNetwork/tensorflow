@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#include <iostream>
 
 #include "tensorflow/lite/kernels/internal/reference/floor.h"
 
@@ -36,9 +35,6 @@ enum KernelType {
 };
 
 TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
-
-  std::cout << "^^^ in Floor Prepare ^^^" << std::endl;
-
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   TfLiteTensor* output;
@@ -54,9 +50,6 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 
 template <KernelType type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-
-  std::cout << "^^^ in Floor Eval ^^^" << std::endl;
-
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   TfLiteTensor* output;
