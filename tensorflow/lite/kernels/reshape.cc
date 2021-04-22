@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include <stdint.h>
 #include <string.h>
+#include <iostream>
 
 #include <memory>
 
@@ -37,7 +38,6 @@ TfLiteStatus ResizeOutput(TfLiteContext* context, TfLiteNode* node) {
   TfLiteIntArray* output_shape = GetOutputShape(context, node);
   std::unique_ptr<TfLiteIntArray, void (*)(TfLiteIntArray*)>
       scoped_output_shape(output_shape, TfLiteIntArrayFree);
-
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   TfLiteTensor* output;
@@ -50,10 +50,14 @@ TfLiteStatus ResizeOutput(TfLiteContext* context, TfLiteNode* node) {
   // of output elements is the same as the number of input elements.
   int num_input_elements = NumElements(input);
 
+  std::cout << "--- num_input_elements = " << num_input_elements << std::endl;
+  std::cout << "--- output_shape->size = " << output_shape->size << std::endl;
+
   int num_output_elements = 1;
   int stretch_dim = -1;
   for (int i = 0; i < output_shape->size; ++i) {
     int value = output_shape->data[i];
+    std::cout << "--- output_shape->data[i] = " << output_shape->data[i] << std::endl;
     if (value == -1) {
       TF_LITE_ENSURE_EQ(context, stretch_dim, -1);
       stretch_dim = i;
