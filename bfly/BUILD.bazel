@@ -1,0 +1,43 @@
+filegroup(
+    name = "models",
+    srcs = glob(["models/*.tflite"]),
+)
+
+cc_binary(
+    name = "connected",
+    srcs = [
+        "connected.cc",
+    ],
+    data = [
+        ":models",
+    ],
+    deps = [
+        "//tensorflow/lite/c:c_api",
+    ],
+)
+
+cc_binary(
+    name = "cc_wide",
+    srcs = [
+        "cc_wide.cc",
+    ],
+    data = [
+        ":models",
+    ],
+    deps = [
+        "//tensorflow/lite/c:c_api",
+    ],
+)
+
+cc_binary(
+    name = "floor",
+    srcs = [
+        "floor.cc",
+    ],
+    data = [
+        ":models",
+    ],
+    deps = [
+        "//tensorflow/lite/c:c_api",
+    ],
+)
