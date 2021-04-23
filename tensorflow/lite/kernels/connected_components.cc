@@ -26,6 +26,7 @@ struct OpData {
   int scratch_tensor_index;
 };
 
+
 // This is where we add the forest and rank tensors used by the
 // addons::ImageConnectedCompontes OpKernel
 void* Init(TfLiteContext* context, const char*, size_t) {
@@ -34,11 +35,13 @@ void* Init(TfLiteContext* context, const char*, size_t) {
   return op_data;
 }
 
+
 // Clean up our OpData structure.
 // TODO: Where are the tensors freed?
 void Free(TfLiteContext*, void* buffer) {
   delete reinterpret_cast<OpData*>(buffer);
 }
+
 
 // Prepare is called during the allocation of tensors.
 // Here we
@@ -46,7 +49,6 @@ void Free(TfLiteContext*, void* buffer) {
 //  2: check that we support the input and output types.
 //  3: resize tensors based on the input shape.
 TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
-
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
 
@@ -54,8 +56,6 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input_t));
   TfLiteTensor *output_t;
   TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, kOutputTensor, &output_t));
-
-
 
   TF_LITE_ENSURE_EQ(context, input_t->dims->size, 3);
   TF_LITE_ENSURE_TYPES_EQ(context, input_t->type, kTfLiteFloat32);
@@ -66,7 +66,7 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TfLiteIntArrayFree(node->temporaries);
   node->temporaries = TfLiteIntArrayCreate(kTempTensorCount);
 
-  // forest_t
+  // forest_t temporary
   node->temporaries->data[0] = op_data->scratch_tensor_index;
   TfLiteTensor* forest_t;
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/0, &forest_t));
@@ -77,7 +77,7 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, forest_t, input_size));
   }
 
-  // rank_t
+  // rank_t temporary
   node->temporaries->data[1] = op_data->scratch_tensor_index+1;
   TfLiteTensor* rank_t;
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/1, &rank_t));
@@ -88,13 +88,14 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, rank_t, input_size));
   }
 
-
+  // resize output as necessary
   if(!TfLiteIntArrayEqual(output_t->dims, input_t->dims)) {
     TfLiteIntArray *input_size = TfLiteIntArrayCopy(input_t->dims);
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, output_t, input_size));
   }
   return kTfLiteOk;
 }
+
 
 TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 
@@ -111,6 +112,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   return kTfLiteOk;
 }
 }  // namespace connected_component
+
 
 TfLiteRegistration* Register_CONNECTED_COMPONENTS() {
   static TfLiteRegistration r = {
