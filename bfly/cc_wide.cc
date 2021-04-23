@@ -57,11 +57,11 @@ int main(int argc, char** argv) {
 
   // Now resize and reallocate tensors
 
-  int input_dims[2] = {3, 3};
+  int input_dims[3] = {1, 3, 3};
 
   std::cout << "## Just before calling resize" << std::endl;
 
-  TfLiteInterpreterResizeInputTensor(interpreter, 0, input_dims, 2);
+  TfLiteInterpreterResizeInputTensor(interpreter, 0, input_dims, 3);
 
   std::cout << "## Just after calling resize" << std::endl;
 

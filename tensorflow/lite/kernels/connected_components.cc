@@ -89,10 +89,11 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   }
 
 
-  if(!TfLiteIntArrayEqual(output_t->dims, input_t->dims) {
+  if(!TfLiteIntArrayEqual(output_t->dims, input_t->dims)) {
     TfLiteIntArray *input_size = TfLiteIntArrayCopy(input_t->dims);
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, output_t, input_size));
   }
+  return kTfLiteOk;
 }
 
 TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
@@ -102,10 +103,10 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   const TfLiteTensor *input_t;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input_t));
   const int flat_size = GetTensorShape(output_t).FlatSize();
-  auto *output_data = GetTensorData<int32_t>(output_t);
+  auto *output_data = GetTensorData<int64_t>(output_t);
 
   for (int i = 0; i < flat_size; ++i) {
-    output_data[i] = int32_t{i};
+    output_data[i] = int64_t{i};
   }
   return kTfLiteOk;
 }
