@@ -4,19 +4,6 @@ filegroup(
 )
 
 cc_binary(
-    name = "connected",
-    srcs = [
-        "connected.cc",
-    ],
-    data = [
-        ":models",
-    ],
-    deps = [
-        "//tensorflow/lite/c:c_api",
-    ],
-)
-
-cc_binary(
     name = "cc_wide",
     srcs = [
         "cc_wide.cc",
