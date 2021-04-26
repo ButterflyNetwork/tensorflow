@@ -3,9 +3,15 @@
 // We expect a shape of (N, H, W). The code supports both
 // integer and float types. Output type is int64.
 //
+#include <iostream>
+
 #include "tensorflow/lite/c/common.h"
+#include "tensorflow/lite/kernels/cpu_backend_context.h"
+#include "tensorflow/lite/kernels/cpu_backend_threadpool.h"
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
+#include "third_party/eigen3/Eigen/Core"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 namespace tflite {
 namespace ops {
@@ -18,6 +24,16 @@ constexpr int kInputTensor = 0;
 constexpr int kOutputTensor = 0;
 
 constexpr int kTempTensorCount = 2;
+
+
+// Copied from tensorflow/core/framework/tensor_types.h
+template <typename T, int NDIMS = 1, typename IndexType = Eigen::DenseIndex>
+struct TTypes {
+  // Rank-1 tensor (vector) of scalar type T.
+  typedef Eigen::TensorMap<Eigen::Tensor<T, 1, Eigen::RowMajor, IndexType>, Eigen::Aligned> Flat;
+  typedef Eigen::TensorMap<Eigen::Tensor<T, NDIMS, Eigen::RowMajor, IndexType>, Eigen::Aligned> Tensor;
+  typedef Eigen::TensorMap<Eigen::Tensor<const T, NDIMS, Eigen::RowMajor, IndexType>, Eigen::Aligned> ConstTensor;
+};
 
 
 template <typename T>
@@ -203,8 +219,26 @@ class BlockedImageUnionFindFunctor {
   }
 };
 
+// Struct to hold temporary Tensors
+struct OpData {
+  int scratch_tensor_index;
+};
 
 
+template <typename T>
+struct ConnectedComponentWorkerTask : cpu_backend_threadpool::Task {
+  ConnectedComponentWorkerTask(int start, int end)
+      : start(start), end(end) {}
+  void Run() override {
+    for (int i = start; i < end; ++i) {
+      std::cout << "i = " << i << std::endl;
+    }
+  }
+
+ private:
+  int start;
+  int end;
+};
 
 
 
@@ -212,10 +246,6 @@ class BlockedImageUnionFindFunctor {
 
 }  // namespace
 
-// Struct to hold temporary Tensors
-struct OpData {
-  int scratch_tensor_index;
-};
 
 
 // This is where we add the forest and rank tensors used by the
@@ -301,11 +331,32 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/0, &forest_t));
   auto *forest_data = GetTensorData<int64_t>(forest_t);
 
+  TfLiteTensor* rank_t;
+  TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/1, &rank_t));
+  auto *rank_data = GetTensorData<int64_t>(rank_t);
+
   
   // Fill forest with values from 0 to n-1
   for (int i = 0; i < flat_size; ++i) {
     forest_data[i] = int64_t{i};
+    rank_data[i] = int64_t{0};
   }
+
+  CpuBackendContext* cpu_backend_context =
+      CpuBackendContext::GetFromContext(context);
+  const int thread_count = cpu_backend_context->max_num_threads();
+  std::cout << "### thread count = " << thread_count << std::endl;
+
+  std::vector<ConnectedComponentWorkerTask<int64_t>> tasks;
+  tasks.reserve(thread_count);
+  int start = 0;
+  int range = 5;
+  for (int i = 0; i < thread_count; ++i) {
+    int end = start + (range - start) / (thread_count - i);
+    tasks.emplace_back(ConnectedComponentWorkerTask<int64_t>(start, end));
+    start = end;
+  }
+  cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), cpu_backend_context);
 
 
   for (int i = 0; i < flat_size; ++i) {
