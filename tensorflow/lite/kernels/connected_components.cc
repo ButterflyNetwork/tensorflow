@@ -10,8 +10,7 @@
 #include "tensorflow/lite/kernels/cpu_backend_threadpool.h"
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
-#include "third_party/eigen3/Eigen/Core"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+
 
 namespace tflite {
 namespace ops {
@@ -24,16 +23,6 @@ constexpr int kInputTensor = 0;
 constexpr int kOutputTensor = 0;
 
 constexpr int kTempTensorCount = 2;
-
-
-// Copied from tensorflow/core/framework/tensor_types.h
-template <typename T, int NDIMS = 1, typename IndexType = Eigen::DenseIndex>
-struct TTypes {
-  // Rank-1 tensor (vector) of scalar type T.
-  typedef Eigen::TensorMap<Eigen::Tensor<T, 1, Eigen::RowMajor, IndexType>, Eigen::Aligned> Flat;
-  typedef Eigen::TensorMap<Eigen::Tensor<T, NDIMS, Eigen::RowMajor, IndexType>, Eigen::Aligned> Tensor;
-  typedef Eigen::TensorMap<Eigen::Tensor<const T, NDIMS, Eigen::RowMajor, IndexType>, Eigen::Aligned> ConstTensor;
-};
 
 
 template <typename T>
@@ -398,6 +387,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   }
 
 
+  // some bogus output for now.
   for (int i = 0; i < flat_size; ++i) {
     output_data[i] = int64_t{i};
   }
