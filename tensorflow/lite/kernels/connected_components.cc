@@ -386,11 +386,14 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
     cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), cpu_backend_context);
   }
 
-
-  // some bogus output for now.
+  // seems a hokey algorithm?
   for (int i = 0; i < flat_size; ++i) {
-    output_data[i] = int64_t{i};
+    if (images_data[i] == 0) {
+      output_data[i] == 0;
+    }
+    else output_data[i] = union_find.find(i) + 1;
   }
+
   return kTfLiteOk;
 }
 }  // namespace connected_component
