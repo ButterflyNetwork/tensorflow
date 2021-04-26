@@ -349,8 +349,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 
   CpuBackendContext* cpu_backend_context =
       CpuBackendContext::GetFromContext(context);
-  const int thread_count = cpu_backend_context->max_num_threads();
-  std::cout << "### thread count = " << thread_count << std::endl;
+  // const int thread_count = cpu_backend_context->max_num_threads();
 
   auto num_images = images_t->dims->data[0];
   auto num_rows = images_t->dims->data[1];
