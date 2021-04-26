@@ -227,31 +227,37 @@ struct OpData {
 
 template <typename T>
 struct ConnectedComponentWorkerTask : cpu_backend_threadpool::Task {
-  ConnectedComponentWorkerTask(int start, int end)
-      : start(start), end(end) {}
+  ConnectedComponentWorkerTask(
+      BlockedImageUnionFindFunctor<T>* union_find,
+      int64_t start_block,
+      int64_t limit_block,
+      int64_t num_blocks_vertically,
+      int64_t num_blocks_horizontally
+  ):
+    union_find_(union_find),
+    start_block_(start_block),
+    limit_block_{limit_block},
+    num_blocks_vertically_{num_blocks_vertically},
+    num_blocks_horizontally_(num_blocks_horizontally) {}
+
   void Run() override {
-    for (int i = start; i < end; ++i) {
-      std::cout << "i = " << i << std::endl;
+    for (int64_t i = start_block_; i < limit_block_; i++) {
+      int64_t block_x = i % num_blocks_horizontally_;
+      int64_t block_y =
+          (i / num_blocks_horizontally_) % num_blocks_vertically_;
+      int64_t image =
+          i / (num_blocks_horizontally_ * num_blocks_vertically_);
+      union_find_->merge_internal_block_edges(image, block_y, block_x);
     }
   }
 
  private:
-  int start;
-  int end;
+  BlockedImageUnionFindFunctor<T>* union_find_;
+  int64_t start_block_;
+  int64_t limit_block_;
+  int64_t num_blocks_vertically_;
+  int64_t num_blocks_horizontally_;
 };
-
-
-// Connected components CPU implementation. See `connected_components.h` for a
-// description of the algorithm.
-template <typename T>
-struct Fooey {
-  void operator()(int i) {
-    std::cout << i << std::endl; 
-  }
-};
-
-
-
 
 
 }  // namespace
@@ -352,36 +358,44 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
     rank_data[i] = int64_t{0};
   }
 
-  auto num_images = images_t->dims->data[0];
-  auto num_rows = images_t->dims->data[1];
-  auto num_cols = images_t->dims->data[2];
-
-  // Test here...
-  auto *images_data = GetTensorData<float_t>(images_t);
-  BlockedImageUnionFindFunctor<float_t> union_find(
-      images_data, num_rows, num_cols, forest_data, rank_data
-  );
-  while(union_find.can_merge()) {
-    std::cout << "can merge" << std::endl;
-    union_find.merge_blocks();
-  }
-
-
   CpuBackendContext* cpu_backend_context =
       CpuBackendContext::GetFromContext(context);
   const int thread_count = cpu_backend_context->max_num_threads();
   std::cout << "### thread count = " << thread_count << std::endl;
 
-  std::vector<ConnectedComponentWorkerTask<int64_t>> tasks;
-  tasks.reserve(thread_count);
-  int start = 0;
-  int range = 5;
-  for (int i = 0; i < thread_count; ++i) {
-    int end = start + (range - start) / (thread_count - i);
-    tasks.emplace_back(ConnectedComponentWorkerTask<int64_t>(start, end));
-    start = end;
+  auto num_images = images_t->dims->data[0];
+  auto num_rows = images_t->dims->data[1];
+  auto num_cols = images_t->dims->data[2];
+  auto *images_data = GetTensorData<float_t>(images_t);
+
+  BlockedImageUnionFindFunctor<float_t> union_find(
+      images_data, num_rows, num_cols, forest_data, rank_data
+  );
+
+  while(union_find.can_merge()) {
+    union_find.merge_blocks();
+    int64_t num_blocks_vertically = union_find.num_blocks_vertically();
+    int64_t num_blocks_horizontally = union_find.num_blocks_horizontally();
+    std::vector<ConnectedComponentWorkerTask<float_t>> tasks;
+    // tasks.reserve(thread_count);
+    // pinning to one thread for now.
+    tasks.reserve(1);
+    // Replicating the tf-addons logic here - that is using "cost" and
+    // striding is a bit awkward.  More than likely this algorithm is
+    // sort of inefficient given the low number of available (cpu) threads.
+    // But here's a rough go at this.
+    auto total = num_images * num_blocks_vertically * num_blocks_horizontally;
+    tasks.emplace_back(
+        ConnectedComponentWorkerTask<float_t>(
+          &union_find,
+          0,
+          total,
+          num_blocks_vertically,
+          num_blocks_horizontally
+        )
+    );
+    cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), cpu_backend_context);
   }
-  cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), cpu_backend_context);
 
 
   for (int i = 0; i < flat_size; ++i) {
