@@ -15,16 +15,3 @@ cc_binary(
         "//tensorflow/lite/c:c_api",
     ],
 )
-
-cc_binary(
-    name = "floor",
-    srcs = [
-        "floor.cc",
-    ],
-    data = [
-        ":models",
-    ],
-    deps = [
-        "//tensorflow/lite/c:c_api",
-    ],
-)
