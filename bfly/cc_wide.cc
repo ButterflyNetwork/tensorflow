@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
   }
 
   TfLiteInterpreterOptions* options = TfLiteInterpreterOptionsCreate();
+  TfLiteInterpreterOptionsSetNumThreads(options, 2);
   TfLiteInterpreter* interpreter = TfLiteInterpreterCreate(model, options);
 
   // Allocate tensors.

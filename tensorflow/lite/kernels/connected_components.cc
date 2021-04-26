@@ -241,6 +241,16 @@ struct ConnectedComponentWorkerTask : cpu_backend_threadpool::Task {
 };
 
 
+// Connected components CPU implementation. See `connected_components.h` for a
+// description of the algorithm.
+template <typename T>
+struct Fooey {
+  void operator()(int i) {
+    std::cout << i << std::endl; 
+  }
+};
+
+
 
 
 
@@ -273,13 +283,13 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
 
-  const TfLiteTensor *input_t;
-  TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input_t));
+  const TfLiteTensor *images_t;
+  TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &images_t));
   TfLiteTensor *output_t;
   TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, kOutputTensor, &output_t));
 
-  TF_LITE_ENSURE_EQ(context, input_t->dims->size, 3);
-  TF_LITE_ENSURE_TYPES_EQ(context, input_t->type, kTfLiteFloat32);
+  TF_LITE_ENSURE_EQ(context, images_t->dims->size, 3);
+  TF_LITE_ENSURE_TYPES_EQ(context, images_t->type, kTfLiteFloat32);
   TF_LITE_ENSURE_TYPES_EQ(context, output_t->type, kTfLiteInt64);
 
   // allocate temporary tensors
@@ -293,8 +303,8 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/0, &forest_t));
   forest_t->type = kTfLiteInt64;
   forest_t->allocation_type = kTfLiteArenaRw;
-  if (!TfLiteIntArrayEqual(forest_t->dims, input_t->dims)) {
-    TfLiteIntArray* input_size = TfLiteIntArrayCopy(input_t->dims);
+  if (!TfLiteIntArrayEqual(forest_t->dims, images_t->dims)) {
+    TfLiteIntArray* input_size = TfLiteIntArrayCopy(images_t->dims);
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, forest_t, input_size));
   }
 
@@ -304,14 +314,14 @@ TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/1, &rank_t));
   rank_t->type = kTfLiteInt64;
   rank_t->allocation_type = kTfLiteArenaRw;
-  if (!TfLiteIntArrayEqual(rank_t->dims, input_t->dims)) {
-    TfLiteIntArray* input_size = TfLiteIntArrayCopy(input_t->dims);
+  if (!TfLiteIntArrayEqual(rank_t->dims, images_t->dims)) {
+    TfLiteIntArray* input_size = TfLiteIntArrayCopy(images_t->dims);
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, rank_t, input_size));
   }
 
   // resize output as necessary
-  if(!TfLiteIntArrayEqual(output_t->dims, input_t->dims)) {
-    TfLiteIntArray *input_size = TfLiteIntArrayCopy(input_t->dims);
+  if(!TfLiteIntArrayEqual(output_t->dims, images_t->dims)) {
+    TfLiteIntArray *input_size = TfLiteIntArrayCopy(images_t->dims);
     TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, output_t, input_size));
   }
   return kTfLiteOk;
@@ -322,8 +332,8 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 
   TfLiteTensor *output_t;
   TF_LITE_ENSURE_OK(context,GetOutputSafe(context, node, kOutputTensor, &output_t));
-  const TfLiteTensor *input_t;
-  TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input_t));
+  const TfLiteTensor *images_t;
+  TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &images_t));
   const int flat_size = GetTensorShape(output_t).FlatSize();
   auto *output_data = GetTensorData<int64_t>(output_t);
 
@@ -341,6 +351,21 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
     forest_data[i] = int64_t{i};
     rank_data[i] = int64_t{0};
   }
+
+  auto num_images = images_t->dims->data[0];
+  auto num_rows = images_t->dims->data[1];
+  auto num_cols = images_t->dims->data[2];
+
+  // Test here...
+  auto *images_data = GetTensorData<float_t>(images_t);
+  BlockedImageUnionFindFunctor<float_t> union_find(
+      images_data, num_rows, num_cols, forest_data, rank_data
+  );
+  while(union_find.can_merge()) {
+    std::cout << "can merge" << std::endl;
+    union_find.merge_blocks();
+  }
+
 
   CpuBackendContext* cpu_backend_context =
       CpuBackendContext::GetFromContext(context);
