@@ -1,9 +1,25 @@
-// This is a port of the connected_components module from
-// tensorflow_addons. Input and output shapes are the same.
-// We expect a shape of (N, H, W). The code supports both
-// integer and float types. Output type is int64.
+// This custom op is a port of the connected_components module from tensorflow_addons.
+// This code, like the addons implementation, is CPU only.  Allocation of temporary tensors and the
+// threading implementation diff substantially from the addons library; not surprising given the different runtimes.
+// The threading here was modelled on that found in the mirror_pad.cc kernel code.
 //
-#include <iostream>
+// The connected_component op expects an input shape of (N, H, W). The input type is a template parameter,
+// but currently we only register the an input type of float_t.
+//
+// The output has the same shap as the input and has type int64_t
+//
+// Thread counts are determined by the options passed to the tflite interpreter. For example:
+//
+//    TfLiteInterpreterOptions *options = TfLiteInterpreterOptionsCreate();
+//    TfLiteInterpreterOptionsSetNumThreads(options, 2);
+//    TfLiteInterpreter *interpreter = TfLiteInterpreterCreate(model, options);
+//
+// Finally, the haphazard use of structs/classes/functors reflects in part the style used by the source code.
+//
+// TODO: Look into the impact of messing with threads - this could be a trade-off with app repsonsiveness
+// TODO: Check for memory leaks.
+// TODO(optional): Consider expanding fixed input type (float_t) to additional types as needed.
+
 
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/cpu_backend_context.h"
@@ -21,8 +37,13 @@ namespace {
 
 constexpr int kInputTensor = 0;
 constexpr int kOutputTensor = 0;
-
 constexpr int kTempTensorCount = 2;
+
+
+// Struct to hold temporary Tensors allocated by the Op.
+struct OpData {
+  int scratch_tensor_index;
+};
 
 
 template <typename T>
@@ -61,6 +82,7 @@ class BlockedImageUnionFindFunctor {
         forest_(forest),
         rank_(rank) {}
 
+  // TODO: this does not seem so efficient as we're not correcting as we go?
   // Returns the root of the tree that the pixel at the given index belongs to.
   OutputType
   find(OutputType index) const {
@@ -208,12 +230,8 @@ class BlockedImageUnionFindFunctor {
   }
 };
 
-// Struct to hold temporary Tensors
-struct OpData {
-  int scratch_tensor_index;
-};
 
-
+// This is a task used to parcel work across threads.
 template <typename T>
 struct ConnectedComponentWorkerTask : cpu_backend_threadpool::Task {
   ConnectedComponentWorkerTask(
@@ -248,9 +266,7 @@ struct ConnectedComponentWorkerTask : cpu_backend_threadpool::Task {
   int64_t num_blocks_horizontally_;
 };
 
-
 }  // namespace
-
 
 
 // This is where we add the forest and rank tensors used by the
@@ -263,17 +279,13 @@ void* Init(TfLiteContext* context, const char*, size_t) {
 
 
 // Clean up our OpData structure.
-// TODO: Where are the tensors freed?
 void Free(TfLiteContext*, void* buffer) {
   delete reinterpret_cast<OpData*>(buffer);
 }
 
 
-// Prepare is called during the allocation of tensors.
-// Here we
-//  1: check on the number of inputs and outputs
-//  2: check that we support the input and output types.
-//  3: resize tensors based on the input shape.
+// Allocation and resizing of tensors.
+// Note: unlike templated objects, this code only supports float_t input types for now.
 TfLiteStatus Prepare(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
@@ -341,7 +353,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   auto *rank_data = GetTensorData<int64_t>(rank_t);
 
   
-  // Fill forest with values from 0 to n-1
+  // Initialie forest with values from 0 to n-1
   for (int i = 0; i < flat_size; ++i) {
     forest_data[i] = int64_t{i};
     rank_data[i] = int64_t{0};
@@ -349,7 +361,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
 
   CpuBackendContext* cpu_backend_context =
       CpuBackendContext::GetFromContext(context);
-  // const int thread_count = cpu_backend_context->max_num_threads();
+  const int thread_count = cpu_backend_context->max_num_threads();
 
   auto num_images = images_t->dims->data[0];
   auto num_rows = images_t->dims->data[1];
@@ -364,28 +376,32 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
     union_find.merge_blocks();
     int64_t num_blocks_vertically = union_find.num_blocks_vertically();
     int64_t num_blocks_horizontally = union_find.num_blocks_horizontally();
+    // Possibly move these outside of while loop and use std::vector<>.clear().
     std::vector<ConnectedComponentWorkerTask<float_t>> tasks;
-    // tasks.reserve(thread_count);
-    // pinning to one thread for now.
-    tasks.reserve(1);
-    // Replicating the tf-addons logic here - that is using "cost" and
-    // striding is a bit awkward.  More than likely this algorithm is
-    // sort of inefficient given the low number of available (cpu) threads.
-    // But here's a rough go at this.
+    tasks.reserve(thread_count);
+    // More or less replicating the tf-addons logic here. (There, a "cost" function is used, here we just wing it.)
+    // This algorithm might be inefficient given the low number of available (cpu) threads on mobile.
     auto total = num_images * num_blocks_vertically * num_blocks_horizontally;
-    tasks.emplace_back(
-        ConnectedComponentWorkerTask<float_t>(
-          &union_find,
-          0,
-          total,
-          num_blocks_vertically,
-          num_blocks_horizontally
-        )
-    );
+    auto stride = (total + 1) / thread_count;
+    auto start = 0;
+    for (int i = 0; i < thread_count; ++i) {
+      auto end = std::min(start + stride, total);
+      tasks.emplace_back(
+          ConnectedComponentWorkerTask<float_t>(
+              &union_find,
+              start,
+              end,
+              num_blocks_vertically,
+              num_blocks_horizontally
+          )
+      );
+      if (end == total) break;
+      start = end;
+    }
     cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), cpu_backend_context);
   }
 
-  // seems a hokey algorithm?
+  // Now find roots for each node.
   for (int i = 0; i < flat_size; ++i) {
     if (images_data[i] == 0) {
       output_data[i] == 0;

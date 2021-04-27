@@ -4,9 +4,9 @@ filegroup(
 )
 
 cc_binary(
-    name = "cc_wide",
+    name = "connected_components",
     srcs = [
-        "cc_wide.cc",
+        "connected_components.cc",
     ],
     data = [
         ":models",

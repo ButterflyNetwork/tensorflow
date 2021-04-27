@@ -24,7 +24,7 @@ void dump(const std::vector<T>& result, int dim, const char* comment) {
 
 int main(int argc, char** argv) {
 
-  const char filename[] = "bfly/models/cc_wide.tflite";
+  const char filename[] = "bfly/models/connected_components.tflite";
   TfLiteModel *model = TfLiteModelCreateFromFile(filename);
   if (model == nullptr) {
     std::cerr << "Failed to create model from file";
