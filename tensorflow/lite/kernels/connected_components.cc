@@ -352,8 +352,7 @@ TfLiteStatus Eval(TfLiteContext *context, TfLiteNode *node) {
   TF_LITE_ENSURE_OK(context, GetTemporarySafe(context, node, /*index=*/1, &rank_t));
   auto *rank_data = GetTensorData<int64_t>(rank_t);
 
-  
-  // Initialie forest with values from 0 to n-1
+  // Initialize forest with values from 0 to n-1
   for (int i = 0; i < flat_size; ++i) {
     forest_data[i] = int64_t{i};
     rank_data[i] = int64_t{0};
