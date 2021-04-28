@@ -7,6 +7,10 @@ In particular have some TFLite kernel code ported from
 the tf-addons repo here and some op registration
 for stateful variables.
 
+The principal iOS target here would be
+
+    //tensorflo/lite/ios:TensorFlowLiteC_framework
+
 ## History
 **Note**: branch `master` has moved to a tf2;
  tag v2.5.0_rc2 as of this note, but overtime it will evolve
