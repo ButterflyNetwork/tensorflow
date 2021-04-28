@@ -2490,7 +2490,7 @@ cc_test(
 )
 
 cc_test(
-    name = "connected_componented_test",
+    name = "connected_component_test",
     srcs = ["connected_component_test.cc"],
     deps = [
         ":test_main",
