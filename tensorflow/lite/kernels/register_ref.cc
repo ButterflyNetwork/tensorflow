@@ -29,6 +29,9 @@ TfLiteRegistration* Register_NUMERIC_VERIFY_REF();
 TfLiteRegistration* Register_AUDIO_SPECTROGRAM();
 TfLiteRegistration* Register_MFCC();
 TfLiteRegistration* Register_DETECTION_POSTPROCESS();
+TfLiteRegistration* Register_ASSIGN_VARIABLE();
+TfLiteRegistration* Register_READ_VARIABLE();
+TfLiteRegistration* Register_CONNECTED_COMPONENTS();
 
 }  // namespace custom
 
@@ -161,9 +164,6 @@ TfLiteRegistration* Register_CONV_3D_REF();
 TfLiteRegistration* Register_IMAG();
 TfLiteRegistration* Register_REAL();
 TfLiteRegistration* Register_COMPLEX_ABS();
-TfLiteRegistration* Register_ASSIGN_VARIABLE();
-TfLiteRegistration* Register_READ_VARIABLE();
-TfLiteRegistration* Register_CONNECTED_COMPONENTS();
 
 namespace {
 
