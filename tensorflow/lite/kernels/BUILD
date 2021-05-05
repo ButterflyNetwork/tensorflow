@@ -720,6 +720,15 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "connected_components",
+    srcs = [
+        "connected_components.cc",
+    ],
+    copts = tflite_copts(),
+    deps = BUILTIN_KERNEL_DEPS,
+)
+
 cc_test(
     name = "variable_ops_test",
     size = "small",
@@ -795,6 +804,8 @@ cc_library(
     ],
     deps = [
         ":builtin_op_kernels",
+        ":connected_components",
+        ":variable_op_kernels",
         "//tensorflow/lite:framework",
         "//tensorflow/lite:tflite_with_xnnpack_optional",
         "//tensorflow/lite/c:common",
@@ -814,6 +825,8 @@ cc_library(
     compatible_with = get_compatible_with_portable(),
     deps = [
         ":builtin_op_kernels",
+        ":connected_components",
+        ":variable_op_kernels",
         "//tensorflow/lite:cc_api",
         "//tensorflow/lite:mutable_op_resolver",
         "//tensorflow/lite:tflite_with_xnnpack_optional",
@@ -2473,6 +2486,16 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@flatbuffers",
+    ],
+)
+
+cc_test(
+    name = "connected_component_test",
+    srcs = ["connected_component_test.cc"],
+    deps = [
+        ":test_main",
+        ":test_util",
+        "@com_google_googletest//:gtest",
     ],
 )
 
