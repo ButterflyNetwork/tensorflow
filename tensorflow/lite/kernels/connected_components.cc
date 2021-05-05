@@ -1,4 +1,7 @@
 // This custom op is a port of the connected_components module from tensorflow_addons.
+//
+// See: https://github.com/tensorflow/addons/blob/master/tensorflow_addons/custom_ops/image/cc/kernels/connected_components.cc
+//
 // This code, like the addons implementation, is CPU only.  Allocation of temporary tensors and the
 // threading implementation diff substantially from the addons library; not surprising given the different runtimes.
 // The threading here was modelled on that found in the mirror_pad.cc kernel code.
