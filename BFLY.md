@@ -9,7 +9,7 @@ for stateful variables.
 
 The principal iOS target here would be
 
-    //tensorflo/lite/ios:TensorFlowLiteC_framework
+    //tensorflow/lite/ios:TensorFlowLiteC_framework
 
 ## History
 **Note**: branch `master` has moved to a tf2;
@@ -21,4 +21,3 @@ been moved to the branch `tf1`.  This legacy branch, like
 `master`, has been
 setup as a protected branch in github, and requires PR
 review prior to submission.
-
