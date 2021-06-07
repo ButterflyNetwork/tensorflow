@@ -59,8 +59,6 @@ cc_library(
         "src/cpu/aarch64/xbyak_aarch64/src",
         "src/cpu/aarch64/xbyak_aarch64/xbyak_aarch64",
         "src/cpu/gemm",
-        "src/cpu/aarch64/xbyak_aarch64/src",
-        "src/cpu/aarch64/xbyak_aarch64/xbyak_aarch64",
     ],
     linkopts = ["-lgomp"],
     textual_hdrs = glob(

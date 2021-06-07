@@ -240,23 +240,6 @@ tflite::TensorType FromTocoDataTypeToTflitToTensorType(int inference_type) {
   }
 }
 
-tflite::TensorType FromTocoDataTypeToTflitToTensorType(int inference_type) {
-  switch (inference_type) {
-    case toco::IODataType::QUANTIZED_INT16:
-      return tflite::TensorType_INT16;
-    case toco::IODataType::QUANTIZED_UINT8:
-      return tflite::TensorType_UINT8;
-    case toco::IODataType::UINT8:
-      return tflite::TensorType_UINT8;
-    case toco::IODataType::QUANTIZED_INT8:
-      return tflite::TensorType_INT8;
-    case toco::IODataType::INT8:
-      return tflite::TensorType_INT8;
-    default:
-      return tflite::TensorType_FLOAT32;
-  }
-}
-
 PyObject* MlirQuantizeModel(PyObject* data, bool disable_per_channel,
                             bool fully_quantize, int inference_type,
                             int input_data_type, int output_data_type,

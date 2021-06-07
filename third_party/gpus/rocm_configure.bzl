@@ -650,7 +650,6 @@ def _create_local_rocm_repository(repository_ctx):
         ],
     ))
 
-
     # Set up BUILD file for rocm/
     repository_ctx.template(
         "rocm/build_defs.bzl",

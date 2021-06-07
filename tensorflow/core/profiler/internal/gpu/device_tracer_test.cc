@@ -349,7 +349,6 @@ TEST_F(DeviceTracerTest, TraceToXSpace) {
   });
   EXPECT_GE(total_events, 5);
 }
-#endif  // TENSORFLOW_USE_ROCM
 
 TEST_F(DeviceTracerTest, CudaRuntimeResource) {
   auto tracer = CreateGpuTracer();

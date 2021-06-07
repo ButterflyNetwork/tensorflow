@@ -537,7 +537,7 @@ distribute_py_test(
 
 distribute_py_test(
     name = "keras_rnn_model_correctness_test",
-    size = "large",
+    size = "medium",
     srcs = ["keras_rnn_model_correctness_test.py"],
     full_precision = True,
     main = "keras_rnn_model_correctness_test.py",

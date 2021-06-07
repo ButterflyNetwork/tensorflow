@@ -2610,6 +2610,16 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "connected_component_test",
+    srcs = ["connected_component_test.cc"],
+    deps = [
+        ":test_main",
+        ":test_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 tflite_portable_test_suite_combined(combine_conditions = {"deps": [":test_main"]})
 
 # Note this is created mainly for validating external delegates in OSS.
