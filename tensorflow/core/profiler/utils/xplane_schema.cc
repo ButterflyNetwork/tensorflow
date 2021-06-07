@@ -42,6 +42,7 @@ const absl::string_view kTensorFlowOpLineName = "TensorFlow Ops";
 const absl::string_view kXlaModuleLineName = "XLA Modules";
 const absl::string_view kXlaOpLineName = "XLA Ops";
 const absl::string_view kKernelLaunchLineName = "Launch Stats";
+const absl::string_view kSourceLineName = "Source code";
 
 namespace {
 
@@ -112,6 +113,8 @@ const HostEventTypeMap& GetHostEventTypeMap() {
       {"MapAndBatchConsume", kMapAndBatchConsume},
       {"ParseExampleProduce", kParseExampleProduce},
       {"ParseExampleConsume", kParseExampleConsume},
+      {"ParallelBatchProduce", kParallelBatchProduce},
+      {"ParallelBatchConsume", kParallelBatchConsume},
       // Batching related.
       {"BatchingSessionRun", kBatchingSessionRun},
       {"ProcessBatch", kProcessBatch},
@@ -120,6 +123,8 @@ const HostEventTypeMap& GetHostEventTypeMap() {
       {"ScheduleWithoutSplit", kScheduleWithoutSplit},
       {"ScheduleWithSplit", kScheduleWithSplit},
       {"ASBSQueue::Schedule", kASBSQueueSchedule},
+      // TFRT related.
+      {"TfrtModelRun", kTfrtModelRun},
       // JAX related.
       {"LocalExecutable::ExecuteOnLocalDevices", kExecuteOnLocalDevices},
       // GPU related.
@@ -200,6 +205,7 @@ const StatTypeMap& GetStatTypeMap() {
       {"flops", kFlops},
       {"bytes_accessed", kBytesAccessed},
       {"selected_group_ids", kSelectedGroupIds},
+      {"source", kSourceInfo},
       // Performance counter related.
       {"Raw Value", kRawValue},
       {"Scaled Value", kScaledValue},

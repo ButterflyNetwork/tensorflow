@@ -56,6 +56,7 @@ const char kCastToFp16[] = "CastToFp16";
 const char kCastToBf16[] = "CastToBf16";
 const char kCastToFp32[] = "CastToFp32";
 
+#if GOOGLE_CUDA
 // Returns the GPU architecture (compute capability) as a (major, minor) pair.
 std::pair<int, int> GetDeviceGPUArch(
     const DeviceProperties& device_properties) {
@@ -81,12 +82,12 @@ std::pair<int, int> GetDeviceGPUArch(
     return {major, 0};
   }
 }
+#endif
 
 // Returns true if FP16Support is valid
 // For CUDA, We compare the GPUArch with the kMinGPUArch, if GPUArch is >= min,
 // return true. For AMD the corresponding gfx arch string for the detected AMD
 // GPU is in the list for FP16 supported compute. Returns false otherwise.
-
 bool HasFastFP16Support(const DeviceProperties& props) {
 #if GOOGLE_CUDA
   return GetDeviceGPUArch(props) >= kMinGPUArch;

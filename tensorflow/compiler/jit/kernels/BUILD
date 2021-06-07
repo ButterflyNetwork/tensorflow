@@ -5,7 +5,7 @@ package(
         "//tensorflow/compiler/tf2xla:internal",
         "//tensorflow/core/tpu:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 XLA_OPS_DEPS = [
@@ -24,6 +24,7 @@ XLA_OPS_DEPS = [
     "//tensorflow/compiler/tf2xla:common",
     "//tensorflow/compiler/tf2xla:tf2xla_util",
     "//tensorflow/compiler/tf2xla:xla_compiler",
+    "//tensorflow/compiler/tf2xla:xla_helpers",
     "//tensorflow/compiler/tf2xla:xla_op_registry",
     "//tensorflow/compiler/xla:executable_run_options",
     "//tensorflow/compiler/xla:status_macros",
@@ -38,6 +39,7 @@ XLA_OPS_DEPS = [
     "//tensorflow/core/platform:stream_executor_no_cuda",
     "//tensorflow/core/profiler/lib:traceme",
     "//tensorflow/stream_executor:tf_allocator_adapter",
+    "@com_google_absl//absl/types:optional",
 ]
 
 # Linked by tensorflow core, without registration of jit compilation passes.
@@ -45,7 +47,7 @@ cc_library(
     name = "xla_ops_no_jit_rewrite_registration",
     srcs = ["xla_ops.cc"],
     hdrs = ["xla_ops.h"],
-    deps = XLA_OPS_DEPS,
+    deps = XLA_OPS_DEPS + ["//tensorflow/core/platform:refcount"],
     alwayslink = 1,
 )
 

@@ -347,6 +347,7 @@ cc_library(
         "include/curl/easy.h",
         "include/curl/mprintf.h",
         "include/curl/multi.h",
+        "include/curl/options.h",
         "include/curl/stdcheaders.h",
         "include/curl/system.h",
         "include/curl/typecheck-gcc.h",

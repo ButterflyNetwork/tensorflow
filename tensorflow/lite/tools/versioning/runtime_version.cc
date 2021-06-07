@@ -23,12 +23,6 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_utils.h"
 
 namespace tflite {
-namespace {
-// Use this as the placeholder string if a particular op is not yet included
-// in any Tensorflow's RC/Final release source package. Once that op is
-// included in the release, please update this with the real version string.
-static constexpr char kPendingReleaseVersion[] = "UNKNOWN";
-}  // namespace
 
 bool CompareRuntimeVersion(const std::string& v1, const std::string& v2) {
   const std::vector<std::string> vec1 = absl::StrSplit(v1, '.');
@@ -52,6 +46,8 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
   // A map from the version key of an op to its minimum runtime version.
   // For example, {{kAveragePool, 1}, "1.5.0"},  means the 1st version of
   // AveragePool requires a minimum TF Lite runtime version '1.5.0`.
+  // NOTE: When adding a new op version pair, associate it with the current
+  // runtime version defined in tensorflow/core/public/version.h.
   static const std::map<std::pair<BuiltinOperator, int>, std::string>*
       op_version_map =
           new std::map<std::pair<BuiltinOperator, int>, std::string>({
@@ -81,7 +77,7 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
               {{BuiltinOperator_ADD, 1}, "1.5.0"},
               {{BuiltinOperator_ADD, 2}, "1.14.0"},
               {{BuiltinOperator_ADD, 3}, "2.4.0"},
-              {{BuiltinOperator_ADD, 4}, "2.4.0"},
+              {{BuiltinOperator_ADD, 4}, "2.6.0"},
               {{BuiltinOperator_ADD_N, 1}, "1.14.0"},
               {{BuiltinOperator_SPACE_TO_BATCH_ND, 1}, "1.6.0"},
               {{BuiltinOperator_SPACE_TO_BATCH_ND, 2}, "1.14.0"},
@@ -155,11 +151,13 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
               {{BuiltinOperator_PAD, 1}, "1.5.0"},
               {{BuiltinOperator_PAD, 2}, "1.14.0"},
               {{BuiltinOperator_PAD, 3}, "2.4.0"},
+              {{BuiltinOperator_PAD, 4}, "2.6.0"},
               {{BuiltinOperator_TILE, 1}, "1.10.1"},
               {{BuiltinOperator_TILE, 2}, "2.2.0"},
               {{BuiltinOperator_PADV2, 1}, "1.9.0"},
               {{BuiltinOperator_PADV2, 2}, "1.14.0"},
               {{BuiltinOperator_PADV2, 3}, "2.4.0"},
+              {{BuiltinOperator_PADV2, 4}, "2.6.0"},
               {{BuiltinOperator_RESHAPE, 1}, "1.5.0"},
               {{BuiltinOperator_SOFTMAX, 1}, "1.5.0"},
               {{BuiltinOperator_SOFTMAX, 2}, "1.14.0"},
@@ -225,6 +223,7 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
               {{BuiltinOperator_STRIDED_SLICE, 3}, "2.1.0"},
               {{BuiltinOperator_STRIDED_SLICE, 4}, "2.2.0"},
               {{BuiltinOperator_STRIDED_SLICE, 5}, "2.5.0"},
+              {{BuiltinOperator_STRIDED_SLICE, 6}, "2.6.0"},
               {{BuiltinOperator_TOPK_V2, 1}, "1.7.0"},
               {{BuiltinOperator_TOPK_V2, 2}, "1.14.0"},
               {{BuiltinOperator_ARG_MAX, 1}, "1.9.0"},
@@ -331,6 +330,7 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
               {{BuiltinOperator_ABS, 1}, "1.13.0"},
               {{BuiltinOperator_ABS, 2}, "2.4.0"},
               {{BuiltinOperator_ABS, 3}, "2.5.0"},
+              {{BuiltinOperator_ABS, 4}, "2.6.0"},
               {{BuiltinOperator_HARD_SWISH, 1}, "1.15.0"},
               {{BuiltinOperator_FILL, 1}, "1.13.0"},
               {{BuiltinOperator_FILL, 2}, "2.3.0"},
@@ -351,6 +351,8 @@ std::string FindMinimumRuntimeVersionForOp(tflite::BuiltinOperator op_code,
               {{BuiltinOperator_HASHTABLE_FIND, 1}, "2.5.0"},
               {{BuiltinOperator_HASHTABLE_IMPORT, 1}, "2.5.0"},
               {{BuiltinOperator_HASHTABLE_SIZE, 1}, "2.5.0"},
+              {{BuiltinOperator_REDUCE_ALL, 1}, "2.6.0"},
+              {{BuiltinOperator_CONV_3D_TRANSPOSE, 1}, "2.6.0"},
           });
 
   std::pair<BuiltinOperator, int> version_key = {op_code, op_version};
@@ -373,10 +375,8 @@ void UpdateMinimumRuntimeVersionForModel(uint8_t* model_buffer_pointer) {
           model->operator_codes()->Get(op->opcode_index());
       std::string runtime_version = FindMinimumRuntimeVersionForOp(
           GetBuiltinCode(op_code), op_code->version());
-      if (runtime_version.empty() ||
-          runtime_version == kPendingReleaseVersion) {
-        // In case we didn't find the current op in the map, or the operator
-        // doesn't have a minimum runtime version associated, continue.
+      // If we didn't find the current op version in the map, skip comparison.
+      if (runtime_version.empty()) {
         continue;
       }
       if (CompareRuntimeVersion(model_min_version, runtime_version)) {

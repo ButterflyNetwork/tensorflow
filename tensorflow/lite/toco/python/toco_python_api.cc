@@ -223,16 +223,21 @@ PyObject* TocoConvert(PyObject* model_flags_proto_txt_raw,
       output_file_contents_txt.data(), output_file_contents_txt.size());
 }
 
-PyObject* TocoGetPotentiallySupportedOps() {
-  std::vector<std::string> supported_ops = toco::GetPotentiallySupportedOps();
-  PyObject* list = PyList_New(supported_ops.size());
-  for (size_t i = 0; i < supported_ops.size(); ++i) {
-    const std::string& op = supported_ops[i];
-    PyObject* op_dict = PyDict_New();
-    PyDict_SetItemString(op_dict, "op", PyUnicode_FromString(op.c_str()));
-    PyList_SetItem(list, i, op_dict);
+tflite::TensorType FromTocoDataTypeToTflitToTensorType(int inference_type) {
+  switch (inference_type) {
+    case toco::IODataType::QUANTIZED_INT16:
+      return tflite::TensorType_INT16;
+    case toco::IODataType::QUANTIZED_UINT8:
+      return tflite::TensorType_UINT8;
+    case toco::IODataType::UINT8:
+      return tflite::TensorType_UINT8;
+    case toco::IODataType::QUANTIZED_INT8:
+      return tflite::TensorType_INT8;
+    case toco::IODataType::INT8:
+      return tflite::TensorType_INT8;
+    default:
+      return tflite::TensorType_FLOAT32;
   }
-  return list;
 }
 
 tflite::TensorType FromTocoDataTypeToTflitToTensorType(int inference_type) {

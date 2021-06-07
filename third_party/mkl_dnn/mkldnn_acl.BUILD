@@ -45,18 +45,6 @@ cc_library(
             "src/cpu/x64/**",
         ],
     ),
-    textual_hdrs = glob(
-        [
-            "include/**/*",
-            "include/*",
-            "src/common/*.hpp",
-            "src/cpu/**/*.hpp",
-            "src/cpu/*.hpp",
-            "src/cpu/aarch64/xbyak_aarch64/**/*.h",
-        ]) + [
-            ":dnnl_config_h",
-            ":dnnl_version_h",
-        ],
     copts = [
         "-fexceptions",
         "-UUSE_MKL",
@@ -68,11 +56,26 @@ cc_library(
         "src",
         "src/common",
         "src/cpu",
+        "src/cpu/aarch64/xbyak_aarch64/src",
+        "src/cpu/aarch64/xbyak_aarch64/xbyak_aarch64",
         "src/cpu/gemm",
         "src/cpu/aarch64/xbyak_aarch64/src",
         "src/cpu/aarch64/xbyak_aarch64/xbyak_aarch64",
     ],
     linkopts = ["-lgomp"],
+    textual_hdrs = glob(
+        [
+            "include/**/*",
+            "include/*",
+            "src/common/*.hpp",
+            "src/cpu/**/*.hpp",
+            "src/cpu/*.hpp",
+            "src/cpu/aarch64/xbyak_aarch64/**/*.h",
+        ],
+    ) + [
+        ":dnnl_config_h",
+        ":dnnl_version_h",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "@compute_library//:arm_compute_graph",

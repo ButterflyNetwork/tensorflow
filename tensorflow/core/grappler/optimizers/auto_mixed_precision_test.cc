@@ -102,7 +102,7 @@ class AutoMixedPrecisionTest : public GrapplerTest {
 #if GOOGLE_CUDA
     gpu_available_ =
         gpu_available_ && (num_gpus == GetNumAvailableGPUs(kMinGPUArch));
-#else
+#else  // Here we force Tensorflow to use the virtual GFX906
     gpu_available_ = false;
 #endif
     if (gpu_available_) {
@@ -113,8 +113,9 @@ class AutoMixedPrecisionTest : public GrapplerTest {
 #if GOOGLE_CUDA
       device_properties.mutable_environment()->insert({"architecture", "7"});
       device_properties.mutable_environment()->insert({"cuda", "9010"});
-#else 
-      device_properties.mutable_environment()->insert({"architecture", "gfx906"});
+#else
+      device_properties.mutable_environment()->insert(
+          {"architecture", "gfx906"});
 #endif
       virtual_cluster_.reset(
           new VirtualCluster({{"/GPU:1", device_properties}}));
@@ -1041,12 +1042,11 @@ int GetCudaVersion(const Cluster& cluster) {
 
 bool IsSupportedGPU(const Cluster& cluster) {
 #ifdef GOOGLE_CUDA
-    return GetCudaVersion(cluster) >= 9010;
+  return GetCudaVersion(cluster) >= 9010;
 #else
-    return true;
+  return true;
 #endif
 }
-
 
 TEST_F(AutoMixedPrecisionTest, BatchMatMul) {
   tensorflow::Scope s = tensorflow::Scope::NewRootScope();
