@@ -290,6 +290,22 @@ GENERATE_DEFAULT_TESTS_WITH_SPECIFIC_INPUT_VALUES(
     test::InputAsVector<float>({0}), baseline_div_no_nan,
     test::OpsTestConfig().ExpectStrictlyEqual())
 
+// The following tests don't work with Eigen kernels, the relative/absolute
+// precision is too bad (e.g. for input (-18 + 18j) / (1e-6 - 1e-j), Eigen
+// kernels return (18000000 + 0.3410605192j), but the imaginary part should be
+// close to 0.
+#if defined(MLIR_GENERATED_GPU_KERNELS_ENABLED) && \
+    defined(MLIR_GENERATED_EXPERIMENTAL_KERNELS_ENABLED)
+GENERATE_DEFAULT_TESTS(DivNoNan,
+                       /*test_name=*/Complex64, std::complex<float>,
+                       std::complex<float>, baseline_div_no_nan,
+                       test::OpsTestConfig())
+GENERATE_DEFAULT_TESTS(DivNoNan,
+                       /*test_name=*/Complex128, std::complex<double>,
+                       std::complex<double>, baseline_div_no_nan,
+                       test::OpsTestConfig())
+#endif
+
 /// Test `tf.Equal`.
 
 template <typename T>
@@ -736,6 +752,29 @@ GENERATE_DEFAULT_TESTS(RealDiv,
 GENERATE_DEFAULT_TESTS(RealDiv,
                        /*test_name=*/Double, double, double, baseline_div,
                        test::OpsTestConfig().ExpectStrictlyEqual())
+
+/// Test `tf.ReluGrad`.
+
+template <typename T>
+T baseline_relu_grad(T lhs, T rhs) {
+  return rhs > T(0) ? lhs : 0;
+}
+
+// We cannot compare with strictly equal here, because the Eigen based kernel
+// returns -0.0 in some cases where it should return 0.0 (it copies the sign
+// from gradients when returning 0, but not for 'remainder' elements).
+GENERATE_DEFAULT_NO_BROADCASTING_TESTS_2(
+    ReluGrad, /*test_name=*/Half, /*T=*/Eigen::half,
+    /*BaselineT=*/float, /*OutT=*/Eigen::half,
+    /*BaselineOutT=*/float, test::DefaultInput<Eigen::half>(),
+    test::DefaultInput<Eigen::half>(), baseline_relu_grad,
+    test::OpsTestConfig())
+GENERATE_DEFAULT_NO_BROADCASTING_TESTS(ReluGrad,
+                                       /*test_name=*/Float, float, float,
+                                       baseline_relu_grad);
+GENERATE_DEFAULT_NO_BROADCASTING_TESTS(ReluGrad,
+                                       /*test_name=*/Double, double, double,
+                                       baseline_relu_grad);
 
 /// Test `tf.RightShift`.
 

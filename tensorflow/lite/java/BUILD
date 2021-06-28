@@ -50,6 +50,21 @@ aar_with_jni(
     ],
 )
 
+# Same as "tensorflow-lite" (above), but excluding experimental native APIs.
+aar_with_jni(
+    name = "tensorflow-lite-stable",
+    android_library = ":tensorflowlite_stable",
+    headers = [
+        "//tensorflow/lite:builtin_ops.h",
+        "//tensorflow/lite/c:c_api.h",
+        "//tensorflow/lite/c:c_api_types.h",
+        # TODO(b/175298345): move the stable parts of common.h into
+        # a separate header file that contains no experimental APIs
+        # (perhaps also replacing concrete struct types with opaque types
+        # and accessor functions), and include that header here.
+    ],
+)
+
 # EXPERIMENTAL: AAR target for using TensorFlow ops with TFLite. Note that this
 # .aar contains *only* the Flex delegate for using select tf ops; clients must
 # also include the core `tensorflow-lite` runtime.
@@ -76,6 +91,19 @@ android_library_with_tflite(
     proguard_specs = ["proguard.flags"],
     tflite_deps = [
         ":tensorflowlite_native",
+    ],
+    deps = [
+        "@org_checkerframework_qual",
+    ],
+)
+
+android_library_with_tflite(
+    name = "tensorflowlite_stable",
+    srcs = [":java_srcs"],
+    manifest = "AndroidManifest.xml",
+    proguard_specs = ["proguard.flags"],
+    tflite_deps = [
+        ":tensorflowlite_native_stable",
     ],
     deps = [
         "@org_checkerframework_qual",
@@ -275,15 +303,13 @@ java_test_with_tflite(
     ],
 )
 
-# TODO(b/188906055): use java_test_with_tflite rather than java_test,
-# and move libtensorflowlite_test_jni.so from deps to tflite_jni_binaries,
-# after first fixing tests that don't work with java_test_with_tflite.
 # TODO: generate large models at runtime, instead of storing them.
-java_test(
+java_test_with_tflite(
     name = "InterpreterTest",
     size = "small",
     srcs = [
         "src/test/java/org/tensorflow/lite/InterpreterTest.java",
+        "src/test/java/org/tensorflow/lite/SupportedFeatures.java",
         "src/test/java/org/tensorflow/lite/TestInit.java",
         "src/test/java/org/tensorflow/lite/TestUtils.java",
     ],
@@ -301,22 +327,22 @@ java_test(
         "no_mac",  # TODO(b/122888913): libtensorflowlite_test_jni broke on mac.
     ],
     test_class = "org.tensorflow.lite.InterpreterTest",
+    tflite_jni_binaries = [
+        "//tensorflow/lite/java/src/test/native:libtensorflowlite_test_jni.so",
+    ],
     visibility = ["//visibility:private"],
     deps = [
         ":tensorflowlite_javalib",
-        "//tensorflow/lite/java/src/test/native:libtensorflowlite_test_jni.so",
         "@com_google_truth",
         "@junit",
     ],
 )
 
-# TODO(b/188906055): use java_test_with_tflite rather than java_test,
-# and move libtensorflowlite_test_jni.so from deps to tflite_jni_binaries,
-# after first fixing XNNPack test that doesn't work with java_test_with_tflite.
-java_test(
+java_test_with_tflite(
     name = "NnApiDelegateTest",
     size = "small",
     srcs = [
+        "src/test/java/org/tensorflow/lite/SupportedFeatures.java",
         "src/test/java/org/tensorflow/lite/TestInit.java",
         "src/test/java/org/tensorflow/lite/TestUtils.java",
         "src/test/java/org/tensorflow/lite/nnapi/NnApiDelegateTest.java",
@@ -327,10 +353,12 @@ java_test(
     javacopts = JAVACOPTS,
     tags = ["no_mac"],
     test_class = "org.tensorflow.lite.nnapi.NnApiDelegateTest",
+    tflite_jni_binaries = [
+        "//tensorflow/lite/java/src/test/native:libtensorflowlite_test_jni.so",
+    ],
     visibility = ["//visibility:private"],
     deps = [
         ":tensorflowlite_javalib",
-        "//tensorflow/lite/java/src/test/native:libtensorflowlite_test_jni.so",
         "@com_google_truth",
         "@junit",
     ],
@@ -426,6 +454,7 @@ filegroup(
     srcs = [
         "src/test/java/org/tensorflow/lite/InterpreterMobileNetTest.java",
         "src/test/java/org/tensorflow/lite/InterpreterTest.java",
+        "src/test/java/org/tensorflow/lite/SupportedFeatures.java",
         "src/test/java/org/tensorflow/lite/TensorFlowLiteTest.java",
         "src/test/java/org/tensorflow/lite/TestInit.java",
         "src/test/java/org/tensorflow/lite/nnapi/NnApiDelegateTest.java",
@@ -487,6 +516,11 @@ cc_library_with_tflite(
 )
 
 cc_library_with_tflite(
+    name = "tensorflowlite_native_stable",
+    tflite_jni_binaries = ["libtensorflowlite_jni_stable.so"],
+)
+
+cc_library_with_tflite(
     name = "tensorflowlite_test_native",
     testonly = True,
     tflite_jni_binaries = ["//tensorflow/lite/java/src/test/native:libtensorflowlite_test_jni.so"],
@@ -498,6 +532,8 @@ cc_library(
     visibility = ["//visibility:private"],
 )
 
+# JNI shared libary containing Java API native code, including experimental APIs.
+# This library will get automatically loaded by TensorFlowLite.init().
 jni_binary_with_tflite(
     name = "libtensorflowlite_jni.so",
     linkscript = ":tflite_version_script.lds",
@@ -514,7 +550,28 @@ jni_binary_with_tflite(
     ],
 )
 
+# JNI shared libary containing Java API native code, excluding experimental APIs.
+# Unlike libtensorflowlite_jni.so, this will NOT get loaded automatically by
+# TensorFlowLite.init(); instead this library should be explicitly loaded by the
+# client code, using System.LoadLibrary, before TensorFlowLite.init() is called.
+jni_binary_with_tflite(
+    name = "libtensorflowlite_jni_stable.so",
+    linkscript = ":tflite_version_script.lds",
+    tflite_deps = [
+        "//tensorflow/lite/java/src/main/native:native_stable",
+    ],
+    deps = [
+        # Note that we explicitly include the C API here for convenience, as it
+        # allows bundling of the C lib w/ AAR distribution.
+        "//tensorflow/lite/c:c_api",
+        "//tensorflow/lite/delegates/nnapi/java/src/main/native",
+    ],
+)
+
 # EXPERIMENTAL: Native target that supports GPU acceleration.
+# Unlike libtensorflowlite_jni.so, this will NOT get loaded automatically by
+# TensorFlowLite.init(); instead this library should be explicitly loaded by the
+# client code, using System.LoadLibrary, before TensorFlowLite.init() is called.
 tflite_jni_binary(
     name = "libtensorflowlite_gpu_jni.so",
     linkscript = ":gpu_version_script.lds",

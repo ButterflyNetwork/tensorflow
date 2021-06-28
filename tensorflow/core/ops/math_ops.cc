@@ -142,10 +142,10 @@ REGISTER_OP("BatchMatMulV3")
     .Input("y: Tb")
     .Output("output: Tout")
     .Attr(
-        "Ta: {bfloat16, half, float, double, int8, int16, int32, int64, "
+        "Ta: {bfloat16, half, float, double, uint8, int8, int16, int32, int64, "
         "complex64, complex128}")
     .Attr(
-        "Tb: {bfloat16, half, float, double, int8, int16, int32, int64, "
+        "Tb: {bfloat16, half, float, double, uint8, int8, int16, int32, int64, "
         "complex64, complex128}")
     .Attr(
         "Tout: {bfloat16, half, float, double, int16, int32, int64, complex64, "
@@ -497,7 +497,7 @@ REGISTER_OP("DivNoNan")
     .Input("x: T")
     .Input("y: T")
     .Output("z: T")
-    .Attr("T: {half, float, double, complex64, complex128}")
+    .Attr("T: {half, float, bfloat16, double, complex64, complex128}")
     .SetShapeFn(shape_inference::BroadcastBinaryOpShapeFn);
 
 REGISTER_OP("FloorDiv")
@@ -1366,7 +1366,7 @@ REGISTER_OP("SparseSegmentSumGrad")
     .Input("segment_ids: Tsegmentids")
     .Input("output_dim0: int32")
     .Output("output: T")
-    .Attr("T: {bfloat16, float, double}")
+    .Attr("T: {bfloat16, half, float, double}")
     .Attr("Tidx: {int32, int64} = DT_INT32")
     .Attr("Tsegmentids: {int32, int64} = DT_INT32")
     .SetShapeFn(SparseSegmentReductionGradShapeFn);

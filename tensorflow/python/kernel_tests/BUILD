@@ -954,6 +954,7 @@ cuda_py_test(
         "//tensorflow/python:errors",
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:handle_data_util",
         "//tensorflow/python:memory_checker",
         "//tensorflow/python:resource_variable_ops",
         "//tensorflow/python:variables",
@@ -1378,7 +1379,7 @@ cuda_py_test(
     name = "tridiagonal_solve_op_test",
     size = "medium",
     srcs = ["tridiagonal_solve_op_test.py"],
-    shard_count = 10,
+    shard_count = 12,
     tags = [
         "no_oss",  # TODO(b/142818120): Re-enable.
     ],
@@ -3062,7 +3063,6 @@ cuda_py_test(
     srcs = ["conv_ops_test.py"],
     shard_count = 4,
     tags = [
-        "nogpu",  # TODO(b/153763253); flaky
         "optonly",  # times out
     ],
     deps = [
@@ -3270,6 +3270,20 @@ cuda_py_test(
         "//tensorflow/python:platform_test",
         "//tensorflow/python:sparse_grad",
         "//tensorflow/python:sparse_ops",
+        "//third_party/py/numpy",
+    ],
+)
+
+cuda_py_test(
+    name = "sparse_tensor_dense_matmul_op_deterministic_test",
+    size = "small",
+    srcs = ["sparse_tensor_dense_matmul_op_deterministic_test.py"],
+    deps = [
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:constant_op",
+        "//tensorflow/python:errors",
+        "//tensorflow/python:sparse_ops",
+        "//tensorflow/python:sparse_tensor",
         "//third_party/py/numpy",
     ],
 )

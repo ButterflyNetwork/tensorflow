@@ -794,6 +794,7 @@ package_group(
         "//tensorflow_decision_forests/...",
         "//tensorflow_federated/...",
         "//third_party/cloud_tpu/inference_converter/...",
+        "//third_party/py/envlogger/...",
         "//third_party/yggdrasil_decision_forests/...",
     ],
 )
@@ -827,6 +828,7 @@ bzl_library(
         "//tensorflow/core/platform:build_config_root_bzl",
         "//tensorflow/core/platform:rules_cc_bzl",
         "//tensorflow/core/platform/default:cuda_build_defs_bzl",
+        "//third_party/llvm_openmp:openmp_bzl",
         "//third_party/mkl:build_defs_bzl",
         "//third_party/mkl_dnn:build_defs_bzl",
         "@bazel_skylib//lib:new_sets",
@@ -891,7 +893,7 @@ cc_library(
 # statically linked in global, and one by the global which comes in from
 # libtensorflow_framework.so.
 # Even worse, global objects which need to be singletons for semantical
-# correctness (e.g. registers) might get dupliacted.
+# correctness (e.g. registers) might get duplicated.
 #
 # In order to avoid these HARD TO DEBUG CRASHES, it is sufficient to follow
 # these rules:
@@ -910,7 +912,7 @@ cc_library(
 #    -> The dependency is guarded by `if_static`. This is discouraged,
 #       as it diverges dependency topology between static and dynamic TF.
 #
-# TODO(cheshire): write tests to check for rule violations
+# TODO(cheshire): Write tests to check for rule violations.
 tf_cc_shared_object(
     name = "tensorflow_framework",
     framework_so = [],
@@ -936,9 +938,11 @@ tf_cc_shared_object(
         "//tensorflow/c/experimental/stream_executor:stream_executor",
         "//tensorflow/c:env",
         "//tensorflow/c:kernels",
+        "//tensorflow/c:kernels_experimental",
         "//tensorflow/c:logging",
         "//tensorflow/c:ops",
         "//tensorflow/cc/saved_model:loader_lite_impl",
+        "//tensorflow/cc/experimental/libexport:metrics_impl",
         "//tensorflow/core/common_runtime:core_cpu_impl",
         "//tensorflow/core:framework_internal_impl",
         "//tensorflow/core/common_runtime/gpu:gpu_runtime_impl",

@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -421,7 +422,20 @@ R"(HloModule custom_call
 
 ENTRY %CustomCall () -> f32[1,2,3] {
   %constant = f32[1]{0} constant({12345})
-  ROOT %custom-call = f32[1,2,3]{0,2,1} custom-call(f32[1]{0} %constant), custom_call_target="foo\"bar", literal=(f32[1] {0.1})
+  ROOT %custom-call = f32[1,2,3]{0,2,1} custom-call(f32[1]{0} %constant), custom_call_target="foo\"bar", literal=s32[2]{0} {1, 2}
+}
+
+)"
+},
+
+// CustomCall with literal tuple.
+{
+"CustomCallWithLiteralTuple",
+R"(HloModule custom_call
+
+ENTRY %CustomCall () -> f32[1,2,3] {
+  %constant = f32[1]{0} constant({12345})
+  ROOT %custom-call = f32[1,2,3]{0,2,1} custom-call(f32[1]{0} %constant), custom_call_target="foo\"bar", literal=( s32[4]{0} {4, 128, 128, 3}, pred[4]{0} {1, 0, 0, 0} )
 }
 
 )"
@@ -434,7 +448,7 @@ R"(HloModule custom_call
 
 ENTRY %CustomCall () -> f32[1,2,3] {
   %constant = f32[1]{0} constant({12345})
-  ROOT %custom-call = f32[1,2,3]{0,2,1} custom-call(f32[1]{0} %constant), custom_call_target="foo\"bar", literal=(f32[] 0.1)
+  ROOT %custom-call = f32[1,2,3]{0,2,1} custom-call(f32[1]{0} %constant), custom_call_target="foo\"bar", literal=f32[] 0.1
 }
 
 )"
@@ -2364,6 +2378,19 @@ ENTRY %NegativeNan () -> bf16[2] {
   EXPECT_EQ(result.ValueOrDie()->ToString(HloPrintOptions()), original);
 }
 
+TEST_F(HloParserTest, NanPayload) {
+  const string original = R"(HloModule NanPayload_module
+
+ENTRY %NanPayload () -> bf16[2] {
+  ROOT %constant = bf16[2]{0} constant({-nan(0x7f), -nan(0x3f)})
+}
+
+)";
+  auto result = ParseAndReturnUnverifiedModule(original);
+  EXPECT_EQ(Status::OK(), result.status());
+  EXPECT_EQ(result.ValueOrDie()->ToString(HloPrintOptions()), original);
+}
+
 TEST_F(HloParserTest, AttributesAnyOrder) {
   const string original = R"(HloModule any_order_module
 
@@ -3317,6 +3344,15 @@ TEST_F(HloParserTest, ParseShapeStringWithLayout) {
   TF_ASSERT_OK_AND_ASSIGN(Shape actual, ParseShape(shape_string));
   Shape expected = ShapeUtil::MakeShapeWithLayout(F32, {123, 456}, {0, 1});
   ASSERT_TRUE(ShapeUtil::Equal(expected, actual))
+      << "expected: " << ShapeUtil::HumanString(expected)
+      << "actual:   " << ShapeUtil::HumanString(actual);
+}
+
+TEST_F(HloParserTest, ParseShapeStringWithInvalidLayout) {
+  string shape_string = "f32[123,456]invalid{}";
+  TF_ASSERT_OK_AND_ASSIGN(Shape actual, ParseShape(shape_string));
+  Shape expected = ShapeUtil::MakeShape(F32, {123, 456});
+  ASSERT_TRUE(ShapeUtil::Compatible(expected, actual))
       << "expected: " << ShapeUtil::HumanString(expected)
       << "actual:   " << ShapeUtil::HumanString(actual);
 }

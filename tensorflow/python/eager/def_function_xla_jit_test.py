@@ -652,6 +652,17 @@ class DefFunctionTest(xla_test.XLATestCase):
 
   def testUpdateVariable(self):
     with ops.device('device:{}:0'.format(self.device)):
+      v = variables.Variable([0.0, 0.0])
+
+      @def_function.function(jit_compile=True)
+      def f():
+        v.assign([3.1, 2.3])
+
+      f()
+      self.assertAllClose(v, [3.1, 2.3])
+
+  def testUpdateVariableMemoryUsage(self):
+    with ops.device('device:{}:0'.format(self.device)):
 
       on_gpu = 'gpu' in self.device.lower()
       v = variables.Variable([3.1, 3.2])
@@ -854,6 +865,19 @@ class DefFunctionTest(xla_test.XLATestCase):
         hlo = fn.experimental_get_compiler_ir(inputs)(
             stage=stage, device_name=f'/device:{self.device}:0')
         self.assertIsInstance(hlo, bytes)
+
+  def testDotOptimizedHlo(self):
+    with ops.device('device:{}:0'.format(self.device)):
+
+      a = random_ops.random_normal([100, 100])
+      b = random_ops.random_normal([100, 100])
+
+      @def_function.function(jit_compile=True)
+      def f(a, b):
+        return math_ops.matmul(a, b)
+
+      self.assertRegex(f.experimental_get_compiler_ir(a, b)('optimized_hlo'),
+                       '(dot)|(convolution)')
 
   def testConstantOnWrongDevice(self):
     with ops.device('device:{}:0'.format(self.device)):

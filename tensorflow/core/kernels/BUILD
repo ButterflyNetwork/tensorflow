@@ -24,6 +24,7 @@ load(
 load(
     "//tensorflow/core/platform:build_config.bzl",
     "tf_fingerprint_deps",
+    "tf_kernel_tests_linkstatic",
 )
 
 # buildifier: disable=same-origin-load
@@ -49,12 +50,6 @@ load("//tensorflow:tensorflow.bzl", "tf_cuda_cc_tests")
 
 # buildifier: disable=same-origin-load
 load("//tensorflow:tensorflow.bzl", "filegroup")
-
-# For platform specific build config
-load(
-    "//tensorflow/core/platform:build_config.bzl",
-    "tf_kernel_tests_linkstatic",
-)
 load(
     "//tensorflow/core/platform:build_config_root.bzl",
     "tf_cuda_tests_tags",
@@ -3461,6 +3456,7 @@ tf_kernel_library(
     name = "segment_reduction_ops",
     prefix = "segment_reduction_ops",
     deps = MATH_DEPS + if_cuda_or_rocm([
+        ":gpu_prim_helpers",
         "//tensorflow/core/util:cuda_solvers",
     ]),
 )
@@ -6072,9 +6068,11 @@ filegroup(
         "//tensorflow/core/data:dataset_utils.h",
         "//tensorflow/core/data:name_utils.h",
         "//tensorflow/core/data:rewrite_utils.h",
-        "//tensorflow/core/data:root_dataset.h",
         "//tensorflow/core/data:split_utils.h",
+        "//tensorflow/core/data:root_dataset.h",
+        "//tensorflow/core/data:serialization_utils.h",
         "//tensorflow/core/data:stats_utils.h",
+        "//tensorflow/core/data:unbounded_thread_pool.h",
         "//tensorflow/core/kernels/boosted_trees/quantiles:weighted_quantiles_hdrs",
         "//tensorflow/core/kernels/data:batch_dataset_op.h",
         "//tensorflow/core/kernels/data:iterator_ops.h",
@@ -6088,7 +6086,6 @@ filegroup(
         "//tensorflow/core/kernels/data:reduce_dataset_op.h",
         "//tensorflow/core/kernels/data:repeat_dataset_op.h",
         "//tensorflow/core/kernels/data:tensor_slice_dataset_op.h",
-        "//tensorflow/core/kernels/data:unbounded_thread_pool.h",
         "//tensorflow/core/kernels/data/experimental:threadpool_dataset_op.h",
         "//tensorflow/core/kernels/image:adjust_contrast_op.h",
         "//tensorflow/core/kernels/image:adjust_hue_op.h",
@@ -6419,8 +6416,10 @@ filegroup(
         "//tensorflow/core/data:name_utils.cc",
         "//tensorflow/core/data:rewrite_utils.cc",
         "//tensorflow/core/data:root_dataset.cc",
+        "//tensorflow/core/data:serialization_utils.cc",
         "//tensorflow/core/data:split_utils.cc",
         "//tensorflow/core/data:stats_utils.cc",
+        "//tensorflow/core/data:unbounded_thread_pool.cc",
         "//tensorflow/core/kernels/data:batch_dataset_op.cc",
         "//tensorflow/core/kernels/data:iterator_ops.cc",
         "//tensorflow/core/kernels/data:finalize_dataset_op.cc",
@@ -6433,7 +6432,6 @@ filegroup(
         "//tensorflow/core/kernels/data:reduce_dataset_op.cc",
         "//tensorflow/core/kernels/data:repeat_dataset_op.cc",
         "//tensorflow/core/kernels/data:tensor_slice_dataset_op.cc",
-        "//tensorflow/core/kernels/data:unbounded_thread_pool.cc",
         # TODO(b/185903858): This should not be needed since this is part of tensorflow/core/kernels/data/experimental:portable_all_op_kernels.
         "//tensorflow/core/kernels/data/experimental:lookup_ops.cc",
         "//tensorflow/core/kernels/data/experimental:threadpool_dataset_op.cc",
