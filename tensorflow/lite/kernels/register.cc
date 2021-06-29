@@ -28,8 +28,6 @@ TfLiteRegistration* Register_NUMERIC_VERIFY();
 TfLiteRegistration* Register_AUDIO_SPECTROGRAM();
 TfLiteRegistration* Register_MFCC();
 TfLiteRegistration* Register_DETECTION_POSTPROCESS();
-TfLiteRegistration* Register_ASSIGN_VARIABLE();
-TfLiteRegistration* Register_READ_VARIABLE();
 TfLiteRegistration* Register_CONNECTED_COMPONENTS();
 
 }  // namespace custom
@@ -338,8 +336,6 @@ BuiltinOpResolver::BuiltinOpResolver() {
             tflite::ops::custom::Register_DETECTION_POSTPROCESS());
   // By definition, all of the ops added above are not user-defined ops,
   // since they are supported by BuiltinOpResolver.
-  AddCustom("ReadVariable", tflite::ops::custom::Register_READ_VARIABLE());
-  AddCustom("AssignVariable", tflite::ops::custom::Register_ASSIGN_VARIABLE());
   AddCustom("Addons>ImageConnectedComponents", tflite::ops::custom::Register_CONNECTED_COMPONENTS());
   may_directly_contain_user_defined_ops_ = false;
 }
